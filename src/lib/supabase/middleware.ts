@@ -4,10 +4,26 @@ import { GUEST_ID_COOKIE, GUEST_ID_MAX_AGE } from '@/lib/guest/constants';
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
+  const path = request.nextUrl.pathname;
+  const isStaffRoute = path.startsWith('/painel') || path.startsWith('/admin');
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+  if (!supabaseUrl || !supabasePublishableKey) {
+    console.error('Supabase environment variables are not configured.');
+
+    if (isStaffRoute) {
+      const redirectUrl = new URL('/entrar', request.url);
+      redirectUrl.searchParams.set('redirect', path);
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    return response;
+  }
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    supabaseUrl,
+    supabasePublishableKey,
     {
       cookies: {
         getAll() {
@@ -22,12 +38,21 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
 
-  const path = request.nextUrl.pathname;
-  const isStaffRoute = path.startsWith('/painel') || path.startsWith('/admin');
+  try {
+    ({
+      data: { user },
+    } = await supabase.auth.getUser());
+  } catch (error) {
+    console.error('Unable to validate the Supabase session in middleware.', error);
+
+    if (isStaffRoute) {
+      const redirectUrl = new URL('/entrar', request.url);
+      redirectUrl.searchParams.set('redirect', path);
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
 
   if (isStaffRoute && !user) {
     const redirectUrl = new URL('/entrar', request.url);
