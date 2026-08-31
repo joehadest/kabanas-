@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-[#f5f0e5] text-neutral-900 antialiased;
+    background-image: radial-gradient(rgba(23, 22, 18, 0.07) 0.7px, transparent 0.7px);
+    background-size: 8px 8px;
+  }
+  ::selection {
+    @apply bg-brand-300 text-neutral-900;
+  }
+}
+
+@layer utilities {
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .skeleton {
+    @apply bg-neutral-200 bg-[length:200%_100%] bg-gradient-to-r from-neutral-200 via-neutral-100 to-neutral-200 animate-shimmer;
+  }
+  .paper-surface {
+    background-color: #f5f0e5;
+    background-image: linear-gradient(90deg, rgba(234, 179, 8, 0.09), transparent 26%, transparent 74%, rgba(234, 179, 8, 0.07));
+  }
+}
