@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { Copy, Eye, Printer, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { Copy, Eye, Printer, RefreshCw, Trash2, Wifi, WifiOff } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { SAMPLE_CUSTOMER, SAMPLE_KITCHEN } from '@/lib/printing/samples';
 import type {
@@ -35,6 +35,13 @@ const JOB_LABELS: Record<PrintJobType, string> = {
   cash_report: 'Fechamento de caixa',
 };
 
+const STATUS_LABELS: Record<PrintJobRecord['status'], string> = {
+  queued: 'Na fila',
+  printing: 'Imprimindo',
+  printed: 'Impresso',
+  failed: 'Falhou',
+};
+
 function jobPayload(job: PrintJobRecord): KitchenTicketPayload | CustomerReceiptPayload {
   return job.payload as KitchenTicketPayload | CustomerReceiptPayload;
 }
@@ -56,6 +63,11 @@ export function PrintManager({
   const [previewType, setPreviewType] = useState<'kitchen_ticket' | 'customer_receipt'>('kitchen_ticket');
   const [previewJob, setPreviewJob] = useState<PrintJobRecord | null>(null);
   const [paperWidth, setPaperWidth] = useState<58 | 80>(80);
+  const [jobToDelete, setJobToDelete] = useState<PrintJobRecord | null>(null);
+  const [clearQueueOpen, setClearQueueOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const queuedCount = useMemo(() => jobs.filter((job) => job.status === 'queued' || job.status === 'printing').length, [jobs]);
 
   const previewPayload = useMemo(() => {
     if (previewJob) return jobPayload(previewJob);
@@ -128,6 +140,39 @@ export function PrintManager({
       return;
     }
     setJobs((data as PrintJobRecord[]) ?? []);
+  };
+
+  const removeJob = async (job: PrintJobRecord) => {
+    setDeleting(true);
+    const { error } = await createClient().from('print_jobs').delete().eq('id', job.id).eq('store_id', storeId);
+    setDeleting(false);
+    if (error) {
+      showToast('Não foi possível remover o job da fila.', 'error');
+      return;
+    }
+    setJobs((prev) => prev.filter((item) => item.id !== job.id));
+    if (previewJob?.id === job.id) setPreviewJob(null);
+    setJobToDelete(null);
+    showToast('Job removido da fila.', 'success');
+  };
+
+  const clearPendingQueue = async () => {
+    setDeleting(true);
+    const pendingIds = jobs.filter((job) => job.status === 'queued' || job.status === 'printing').map((job) => job.id);
+    if (!pendingIds.length) {
+      setDeleting(false);
+      setClearQueueOpen(false);
+      return;
+    }
+    const { error } = await createClient().from('print_jobs').delete().eq('store_id', storeId).in('id', pendingIds);
+    setDeleting(false);
+    if (error) {
+      showToast('Não foi possível limpar a fila.', 'error');
+      return;
+    }
+    setJobs((prev) => prev.filter((job) => job.status !== 'queued' && job.status !== 'printing'));
+    setClearQueueOpen(false);
+    showToast(`${pendingIds.length} job(s) removido(s) da fila.`, 'success');
   };
 
   const addPrinter = async () => {
@@ -305,7 +350,23 @@ export function PrintManager({
             )}
           </Panel>
 
-          <Panel title="Fila de impressão" eyebrow="Últimos jobs" noPadding>
+          <Panel
+            title="Fila de impressão"
+            eyebrow="Últimos jobs"
+            noPadding
+            action={
+              queuedCount > 0 ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setClearQueueOpen(true)}
+                  className="normal-case text-red-300 hover:border-red-400/50 hover:text-red-200"
+                >
+                  <Trash2 size={14} /> Limpar pendentes ({queuedCount})
+                </Button>
+              ) : undefined
+            }
+          >
             {jobs.length ? (
               <div className="divide-y divide-border">
                 {jobs.map((job) => (
@@ -325,10 +386,19 @@ export function PrintManager({
                             : 'bg-amber-500/10 text-amber-400'
                       )}
                     >
-                      {job.status}
+                      {STATUS_LABELS[job.status]}
                     </span>
                     <Button variant="ghost" size="sm" onClick={() => setPreviewJob(job)} className="normal-case">
                       <Eye size={14} /> Prévia
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setJobToDelete(job)}
+                      className="normal-case text-red-400 hover:text-red-300"
+                      aria-label={`Remover ${JOB_LABELS[job.job_type]}`}
+                    >
+                      <Trash2 size={14} />
                     </Button>
                   </div>
                 ))}
@@ -391,6 +461,53 @@ export function PrintManager({
           <ModalFooter>
             <Button variant="secondary" onClick={() => setPreviewJob(null)} className="normal-case">
               Fechar
+            </Button>
+          </ModalFooter>
+        </Modal>
+      )}
+
+      {jobToDelete && (
+        <Modal onClose={() => setJobToDelete(null)} title="Remover da fila" size="sm" variant="center">
+          <p className="text-sm text-neutral-400">
+            Remover <strong className="text-ink">{JOB_LABELS[jobToDelete.job_type]}</strong> de{' '}
+            {new Date(jobToDelete.created_at).toLocaleString('pt-BR')}?{' '}
+            {jobToDelete.status === 'queued' || jobToDelete.status === 'printing'
+              ? 'O agente não imprimirá este pedido.'
+              : 'O registro será apagado do histórico.'}
+          </p>
+          <ModalFooter>
+            <Button variant="secondary" onClick={() => setJobToDelete(null)} disabled={deleting} className="normal-case">
+              Cancelar
+            </Button>
+            <Button
+              variant="brand"
+              onClick={() => void removeJob(jobToDelete)}
+              disabled={deleting}
+              className="normal-case bg-red-600 hover:bg-red-500"
+            >
+              {deleting ? 'Removendo...' : 'Remover'}
+            </Button>
+          </ModalFooter>
+        </Modal>
+      )}
+
+      {clearQueueOpen && (
+        <Modal onClose={() => setClearQueueOpen(false)} title="Limpar fila pendente" size="sm" variant="center">
+          <p className="text-sm text-neutral-400">
+            Remover <strong className="text-ink">{queuedCount}</strong> job(s) aguardando impressão? Jobs já impressos ou
+            com falha permanecem na lista.
+          </p>
+          <ModalFooter>
+            <Button variant="secondary" onClick={() => setClearQueueOpen(false)} disabled={deleting} className="normal-case">
+              Cancelar
+            </Button>
+            <Button
+              variant="brand"
+              onClick={() => void clearPendingQueue()}
+              disabled={deleting}
+              className="normal-case bg-red-600 hover:bg-red-500"
+            >
+              {deleting ? 'Limpando...' : 'Limpar pendentes'}
             </Button>
           </ModalFooter>
         </Modal>
