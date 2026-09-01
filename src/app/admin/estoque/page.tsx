@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { getActiveStore } from '@/lib/data/get-store';
 import { StockManager } from '@/components/admin/StockManager';
+import { PageContainer, PageHeader } from '@/components/ui/page-layout';
 import type { Category, Product } from '@/lib/types/database';
 
 export const revalidate = 0;
@@ -17,11 +18,15 @@ export default async function EstoquePage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-4xl p-4 sm:p-8">
-      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-700">Disponibilidade</p>
-      <h1 className="mb-1 mt-2 font-serif text-3xl font-bold leading-none text-[#1c1d1a]">Estoque</h1>
-      <p className="mb-7 text-sm text-neutral-500">Marque rapidamente o que está em falta — some do cardápio na hora.</p>
-      <StockManager categories={categories ?? []} products={products ?? []} />
-    </div>
+    <PageContainer className="max-w-4xl">
+      <PageHeader
+        eyebrow="Disponibilidade"
+        title="Estoque"
+        description="Marque rapidamente o que está em falta — some do cardápio na hora."
+      />
+      <div className="mt-8">
+        <StockManager categories={categories ?? []} products={products ?? []} />
+      </div>
+    </PageContainer>
   );
 }

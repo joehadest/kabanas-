@@ -6,11 +6,11 @@ import { HoverBorderGradient } from '@/components/ui/hover-border-gradient';
 import type { StoreSettings } from '@/lib/types/database';
 
 const INPUT_CLASS =
-  'w-full border border-[#d8d4c9] bg-[#faf9f5] px-3.5 py-3 text-sm outline-none transition-colors focus:border-brand-500';
+  'w-full border border-border bg-surface-elevated px-3.5 py-3 text-sm outline-none transition-colors focus:border-brand-500';
 
-const SECTION_TITLE_CLASS = 'mb-1 font-serif text-lg font-bold text-[#1c1d1a]';
+const SECTION_TITLE_CLASS = 'mb-1 font-serif text-lg font-bold text-ink';
 const SECTION_HINT_CLASS = 'mb-4 text-xs text-neutral-500';
-const LABEL_CLASS = 'mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-neutral-600';
+const LABEL_CLASS = 'mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-neutral-400';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -74,7 +74,7 @@ export function StoreSettingsForm({ store }: { store: StoreSettings }) {
 
   return (
     <div className="space-y-6">
-      <section className="border border-[#d8d4c9] bg-[#f7f5ef] p-4 shadow-[0_4px_0_rgba(28,29,26,0.06)] animate-fade-in-up sm:p-6">
+      <section className="border border-border bg-surface-elevated p-4 shadow-[0_4px_0_rgba(28,29,26,0.06)] animate-fade-in-up sm:p-6">
         <h2 className={SECTION_TITLE_CLASS}>Identidade</h2>
         <p className={SECTION_HINT_CLASS}>Nome, frase de efeito e imagens usadas na hero e no cabeçalho do site.</p>
         <div className="space-y-4">
@@ -104,7 +104,7 @@ export function StoreSettingsForm({ store }: { store: StoreSettings }) {
         </div>
       </section>
 
-      <section className="border border-[#d8d4c9] bg-[#f7f5ef] p-4 shadow-[0_4px_0_rgba(28,29,26,0.06)] animate-fade-in-up [animation-delay:60ms] sm:p-6">
+      <section className="border border-border bg-surface-elevated p-4 shadow-[0_4px_0_rgba(28,29,26,0.06)] animate-fade-in-up [animation-delay:60ms] sm:p-6">
         <h2 className={SECTION_TITLE_CLASS}>Contato e endereço</h2>
         <p className={SECTION_HINT_CLASS}>Mostrado para os clientes e usado pela equipe para localizar a loja.</p>
         <div className="space-y-4">
@@ -130,7 +130,7 @@ export function StoreSettingsForm({ store }: { store: StoreSettings }) {
         </div>
       </section>
 
-      <section className="border border-[#d8d4c9] bg-[#f7f5ef] p-4 shadow-[0_4px_0_rgba(28,29,26,0.06)] animate-fade-in-up [animation-delay:120ms] sm:p-6">
+      <section className="border border-border bg-surface-elevated p-4 shadow-[0_4px_0_rgba(28,29,26,0.06)] animate-fade-in-up [animation-delay:120ms] sm:p-6">
         <h2 className={SECTION_TITLE_CLASS}>Entrega</h2>
         <p className={SECTION_HINT_CLASS}>Como a taxa de entrega é calculada e o valor mínimo para fechar um pedido.</p>
         <div className="space-y-4">
@@ -188,7 +188,7 @@ export function StoreSettingsForm({ store }: { store: StoreSettings }) {
       <HoverBorderGradient onClick={handleSave} disabled={saving}>
         {saving ? 'Salvando...' : 'Salvar configurações'}
       </HoverBorderGradient>
-      {saved && <p className="text-xs text-green-600 animate-fade-in">Configurações salvas com sucesso.</p>}
+      {saved && <p className="text-xs text-brand-300 animate-fade-in">Configurações salvas com sucesso.</p>}
     </div>
   );
 }

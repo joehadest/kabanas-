@@ -128,7 +128,7 @@ function DockItem({ item, mouseX, iconSize, maxScale, magneticDistance, showLabe
             exit={{ scale: 0, opacity: 0 }}
             className={cn(
               'absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5',
-              'border-2 border-[#1c1d1a] bg-red-500 text-xs font-semibold text-white shadow-lg'
+              'border-2 border-black bg-red-500 text-xs font-semibold text-white shadow-lg'
             )}
           >
             {item.badge > 99 ? '99+' : item.badge}
@@ -158,11 +158,11 @@ function DockItem({ item, mouseX, iconSize, maxScale, magneticDistance, showLabe
             transition={{ duration: 0.15, ease: 'easeOut' }}
             className={cn(
               'pointer-events-none absolute -top-10 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-lg px-3 py-1.5',
-              'border border-white/10 bg-[#1c1d1a] text-sm font-medium text-white shadow-xl'
+              'border border-white/10 bg-black text-sm font-medium text-white shadow-xl'
             )}
           >
             {item.label}
-            <div className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 border-b border-r border-white/10 bg-[#1c1d1a]" />
+            <div className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 border-b border-r border-white/10 bg-black" />
           </motion.div>
         )}
       </AnimatePresence>
@@ -193,8 +193,8 @@ function MagneticDock({
   const handleMouseLeave = () => mousePosition.set(Infinity);
 
   const variantStyles = {
-    glass: 'bg-[#1c1d1a]/90 backdrop-blur-xl backdrop-saturate-150 border border-white/10',
-    solid: 'bg-[#1c1d1a] border border-white/10',
+    glass: 'bg-black/90 backdrop-blur-xl backdrop-saturate-150 border border-white/10',
+    solid: 'bg-black border border-white/10',
     transparent: 'bg-transparent border-0',
   };
 

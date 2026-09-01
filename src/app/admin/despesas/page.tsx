@@ -1,0 +1,5 @@
+import { createClient } from '@/lib/supabase/server';
+import { getActiveStore } from '@/lib/data/get-store';
+import { ExpenseManager } from '@/components/admin/ExpenseManager';
+export const revalidate = 0;
+export default async function DespesasPage() { const store = await getActiveStore(); if (!store) return <p className="p-6">Empresa não configurada.</p>; const supabase = await createClient(); const [{ data: categories }, { data: expenses }] = await Promise.all([supabase.from('expense_categories').select('id,name').eq('store_id', store.id).order('name'), supabase.from('expenses').select('id,description,amount,due_date,paid_at,recurrence,expense_type,expense_categories(name)').eq('store_id', store.id).order('due_date').limit(30)]); return <ExpenseManager storeId={store.id} categories={categories ?? []} expenses={expenses ?? []} />; }

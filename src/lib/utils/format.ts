@@ -2,6 +2,33 @@ export function formatCurrency(value: number): string {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+/** Converte "10,50" ou "10.50" em número. */
+export function parseDecimal(value: string): number {
+  const trimmed = value.trim();
+  if (!trimmed) return NaN;
+  const normalized = trimmed.includes(',')
+    ? trimmed.replace(/\./g, '').replace(',', '.')
+    : trimmed;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+/** Supabase pode retornar relação N:1 como objeto ou array de um item. */
+export function relationOne<T>(value: T | T[] | null | undefined): T | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value ?? undefined;
+}
+
+/** Nome da mesa/comanda sem prefixo duplicado (ex.: "Comanda Mesa 01" → "Mesa 01"). */
+export function tableDisplayLabel(value: string | null | undefined, fallback = 'Comanda'): string {
+  if (!value?.trim()) return fallback;
+  let label = value.trim();
+  if (/^comanda\s+/i.test(label)) {
+    label = label.replace(/^comanda\s+/i, '').trim();
+  }
+  return label || fallback;
+}
+
 export function formatOrderTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }

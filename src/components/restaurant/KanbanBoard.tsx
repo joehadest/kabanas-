@@ -40,11 +40,11 @@ export function KanbanBoard({ storeId, initialOrders }: Props) {
   const activeOrders = orders.filter((o) => o.status !== 'cancelled');
 
   return (
-    <div className="flex h-full flex-col bg-[#eeece5]">
-      <div className="flex items-center justify-between border-b border-[#d8d4c9] bg-[#faf9f5] px-4 py-4 sm:px-7">
+    <div className="flex h-full flex-col bg-black">
+      <div className="flex items-center justify-between border-b border-border bg-surface-elevated px-4 py-4 sm:px-7">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-700">Fila ao vivo</p>
-          <h1 className="mt-1 flex items-center gap-2 font-serif text-2xl font-bold leading-none text-[#1c1d1a]">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-300">Fila ao vivo</p>
+          <h1 className="mt-1 flex items-center gap-2 font-serif text-2xl font-bold leading-none text-ink">
             Pedidos
             <span className="h-2 w-2 rounded-full bg-status-delivered animate-pulse" />
           </h1>
@@ -53,7 +53,7 @@ export function KanbanBoard({ storeId, initialOrders }: Props) {
           onClick={() => setSoundEnabled((v) => !v)}
           className={clsx(
             'border px-3 py-2 text-xs font-bold transition-all active:scale-95',
-            soundEnabled ? 'border-brand-500 bg-brand-400 text-neutral-950' : 'border-[#bcb7aa] text-neutral-600 hover:border-neutral-600'
+            soundEnabled ? 'border-brand-500 bg-brand-400 text-neutral-950' : 'border-[#bcb7aa] text-neutral-400 hover:border-neutral-600'
           )}
         >
           {soundEnabled ? '🔔 Som ativado' : '🔕 Som desativado'}
@@ -71,11 +71,11 @@ export function KanbanBoard({ storeId, initialOrders }: Props) {
           {COLUMNS.map((status) => {
             const columnOrders = activeOrders.filter((o) => o.status === status);
             return (
-              <div key={status} className="flex w-80 shrink-0 flex-col border border-[#d8d4c9] bg-[#f7f5ef] shadow-[0_4px_0_rgba(28,29,26,0.06)]">
-                <div className="flex items-center gap-2 border-b border-[#d8d4c9] px-4 py-3">
+              <div key={status} className="flex w-80 shrink-0 flex-col border border-border bg-surface-elevated shadow-[0_4px_0_rgba(28,29,26,0.06)]">
+                <div className="flex items-center gap-2 border-b border-border px-4 py-3">
                   <span className={clsx('h-2 w-2 rounded-full', COLUMN_DOT[status])} />
-                  <h2 className="font-serif text-lg font-bold text-[#1c1d1a]">{ORDER_STATUS_LABEL[status]}</h2>
-                  <span className="ml-auto flex h-6 min-w-6 items-center justify-center bg-[#e5e2d8] px-1.5 text-xs font-bold text-neutral-600">
+                  <h2 className="font-serif text-lg font-bold text-ink">{ORDER_STATUS_LABEL[status]}</h2>
+                  <span className="ml-auto flex h-6 min-w-6 items-center justify-center bg-[#e5e2d8] px-1.5 text-xs font-bold text-neutral-400">
                     {columnOrders.length}
                   </span>
                 </div>

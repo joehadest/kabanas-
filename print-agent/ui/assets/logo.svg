@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Kabanas Beer">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f2dfa0"/>
+      <stop offset="50%" stop-color="#d4af37"/>
+      <stop offset="100%" stop-color="#8a6d1a"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="31" fill="#0a0a0a"/>
+  <circle cx="32" cy="32" r="29" stroke="url(#g)" stroke-width="1.4"/>
+  <g stroke="url(#g)" stroke-width="1.2" stroke-linecap="round" fill="none">
+    <path d="M22 22v12c0 1.8 1.4 3.2 3.2 3.2H28V22H22z"/>
+    <path d="M36 20l5 2v12c0 1.8-1.4 3.2-3.2 3.2H34V22l2-2z"/>
+    <path d="M29 19l6 4"/>
+  </g>
+  <text x="32" y="40" text-anchor="middle" fill="url(#g)" font-size="16" font-family="Georgia, serif" font-weight="700">K</text>
+  <ellipse cx="32" cy="48" rx="2.5" ry="3.5" fill="url(#g)"/>
+</svg>

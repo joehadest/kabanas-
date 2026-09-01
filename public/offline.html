@@ -3,17 +3,40 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Você está offline — Kabanas Delivery</title>
+<meta name="theme-color" content="#2c2c2c" />
+<title>Você está offline — Boteco Kabanas Beer</title>
 <style>
-  body { font-family: system-ui, -apple-system, sans-serif; background: #fff2ed; color: #7c1f10; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; padding: 24px; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #2c2c2c;
+    color: #f5ecd4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    margin: 0;
+    text-align: center;
+    padding: 24px;
+  }
   .box { max-width: 360px; }
-  h1 { font-size: 1.25rem; margin-bottom: 8px; }
-  p { color: #9a220f; margin-bottom: 20px; }
-  button { background: #f9481a; color: #fff; border: none; padding: 12px 20px; border-radius: 999px; font-size: 1rem; cursor: pointer; }
+  .logo { width: 72px; height: 72px; border-radius: 999px; margin: 0 auto 20px; border: 2px solid #d4af37; }
+  h1 { font-size: 1.25rem; margin-bottom: 8px; color: #fff; }
+  p { color: #c9c9c9; margin-bottom: 20px; line-height: 1.5; }
+  button {
+    background: #d4af37;
+    color: #1a1a1a;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 999px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
   <div class="box">
+    <img class="logo" src="/brand/logo-kabanas.jpg" alt="Boteco Kabanas Beer" />
     <h1>Sem conexão no momento</h1>
     <p>Verifique sua internet. Assim que reconectar, o app volta ao normal.</p>
     <button onclick="location.reload()">Tentar novamente</button>

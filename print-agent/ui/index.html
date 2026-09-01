@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
+    <title>Kabanas Impressão</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <img src="assets/logo.svg" alt="" class="logo" width="48" height="48" />
+        <div>
+          <p class="eyebrow">Kabanas Beer</p>
+          <h1>Impressão</h1>
+        </div>
+      </header>
+
+      <!-- Assistente de instalação -->
+      <section id="wizard" class="panel hidden">
+        <div class="steps" id="step-indicators">
+          <span class="step-dot active" data-step="0"></span>
+          <span class="step-dot" data-step="1"></span>
+          <span class="step-dot" data-step="2"></span>
+          <span class="step-dot" data-step="3"></span>
+        </div>
+
+        <div class="wizard-step" data-step="0">
+          <h2>Bem-vindo!</h2>
+          <p class="lead">
+            Este programa conecta o computador do caixa às impressoras térmicas. Depois de configurado, ele fica
+            rodando em segundo plano e imprime os pedidos automaticamente.
+          </p>
+          <ul class="checklist">
+            <li>Impressora térmica instalada no Windows</li>
+            <li>Internet no estabelecimento</li>
+            <li>Token copiado do painel Kabanas</li>
+          </ul>
+          <button type="button" class="btn btn-primary" data-action="wizard-next">Começar configuração</button>
+        </div>
+
+        <div class="wizard-step hidden" data-step="1">
+          <h2>Conectar ao painel</h2>
+          <p class="lead">
+            No painel web, vá em <strong>Impressão</strong>, gere o token e copie também o <strong>Store ID</strong>.
+          </p>
+          <button type="button" class="btn btn-ghost btn-sm" data-action="open-admin">Abrir painel no navegador</button>
+
+          <label class="field">
+            <span>Store ID</span>
+            <input id="input-store-id" type="text" placeholder="Cole o Store ID aqui" autocomplete="off" />
+          </label>
+          <label class="field">
+            <span>Token do agente</span>
+            <input id="input-token" type="password" placeholder="Cole o token aqui" autocomplete="off" />
+          </label>
+
+          <div class="row">
+            <button type="button" class="btn btn-ghost" data-action="wizard-prev">Voltar</button>
+            <button type="button" class="btn btn-primary" data-action="wizard-next">Continuar</button>
+          </div>
+        </div>
+
+        <div class="wizard-step hidden" data-step="2">
+          <h2>Escolher impressoras</h2>
+          <p class="lead">Selecione qual impressora recebe a ficha da cozinha e qual imprime a conta do cliente.</p>
+
+          <label class="field">
+            <span>Impressora da cozinha / bar</span>
+            <select id="input-kitchen-printer"></select>
+          </label>
+          <label class="field">
+            <span>Impressora do caixa (conta do cliente)</span>
+            <select id="input-customer-printer"></select>
+          </label>
+
+          <label class="checkbox">
+            <input id="input-start-windows" type="checkbox" checked />
+            <span>Abrir automaticamente quando o Windows iniciar</span>
+          </label>
+
+          <div class="row">
+            <button type="button" class="btn btn-ghost" data-action="wizard-prev">Voltar</button>
+            <button type="button" class="btn btn-primary" data-action="wizard-finish">Concluir instalação</button>
+          </div>
+        </div>
+
+        <div class="wizard-step hidden" data-step="3">
+          <div class="success-icon">✓</div>
+          <h2>Tudo pronto!</h2>
+          <p class="lead">
+            O Kabanas Impressão está ativo. Você pode minimizar esta janela — o programa continua na bandeja do Windows
+            (ícone perto do relógio).
+          </p>
+          <button type="button" class="btn btn-primary" data-action="go-dashboard">Ir para o painel</button>
+        </div>
+      </section>
+
+      <!-- Painel principal -->
+      <section id="dashboard" class="panel hidden">
+        <div class="status-card" id="status-card">
+          <div class="status-dot" id="status-dot"></div>
+          <div>
+            <p class="status-title" id="status-title">Verificando...</p>
+            <p class="status-sub" id="status-sub">Aguardando primeira conexão</p>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="stat">
+            <p class="stat-label">Impressões hoje</p>
+            <p class="stat-value" id="stat-printed">0</p>
+          </div>
+          <div class="stat">
+            <p class="stat-label">Última verificação</p>
+            <p class="stat-value stat-value-sm" id="stat-poll">—</p>
+          </div>
+        </div>
+
+        <div class="info-block">
+          <p><span class="muted">Cozinha:</span> <span id="info-kitchen">—</span></p>
+          <p><span class="muted">Caixa:</span> <span id="info-customer">—</span></p>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="btn btn-secondary" data-action="test-kitchen">Testar cozinha</button>
+          <button type="button" class="btn btn-secondary" data-action="test-customer">Testar caixa</button>
+        </div>
+
+        <button type="button" class="btn btn-ghost btn-block" data-action="open-settings">Configurações</button>
+        <p class="hint">Ao fechar a janela, o programa continua rodando na bandeja do Windows.</p>
+      </section>
+
+      <!-- Configurações -->
+      <section id="settings" class="panel hidden">
+        <h2>Configurações</h2>
+
+        <label class="field">
+          <span>Store ID</span>
+          <input id="settings-store-id" type="text" />
+        </label>
+        <label class="field">
+          <span>Token do agente</span>
+          <input id="settings-token" type="password" placeholder="Deixe em branco para manter o atual" />
+        </label>
+        <label class="field">
+          <span>Impressora cozinha</span>
+          <select id="settings-kitchen-printer"></select>
+        </label>
+        <label class="field">
+          <span>Impressora caixa</span>
+          <select id="settings-customer-printer"></select>
+        </label>
+        <label class="checkbox">
+          <input id="settings-start-windows" type="checkbox" />
+          <span>Abrir com o Windows</span>
+        </label>
+
+        <div class="row">
+          <button type="button" class="btn btn-ghost" data-action="back-dashboard">Voltar</button>
+          <button type="button" class="btn btn-primary" data-action="save-settings">Salvar</button>
+        </div>
+      </section>
+
+      <p id="toast" class="toast hidden" role="status"></p>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>

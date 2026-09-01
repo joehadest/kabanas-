@@ -1,22 +1,36 @@
 import type { Metadata, Viewport } from 'next';
-import { ServiceWorkerRegister } from '@/components/shared/ServiceWorkerRegister';
-import { CartHydration } from '@/components/shared/CartHydration';
-import { SplashScreen } from '@/components/customer/SplashScreen';
-import { getActiveStore } from '@/lib/data/get-store';
+import { DM_Sans, Rye } from 'next/font/google';
 import './globals.css';
 
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  variable: '--font-dm-sans',
+  display: 'swap',
+});
+
+/** Fonte display estilo “Kabanas” do banner — serifada Western/boteco. */
+const rye = Rye({
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-rye',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
-  title: 'Kabanas Delivery',
-  description: 'Peça sua comida favorita com entrega rápida.',
+  title: 'Boteco Kabanas Beer',
+  description: 'Choperia e petiscaria — chopp gelado, petiscos na brasa e gestão do negócio.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'Kabanas',
   },
   icons: {
-    icon: '/icons/icon-192.png',
-    apple: '/icons/icon-192.png',
+    icon: [
+      { url: '/brand/logo-mark.svg', type: 'image/svg+xml' },
+      { url: '/brand/logo-kabanas.jpg', sizes: '512x512', type: 'image/jpeg' },
+    ],
+    apple: '/brand/logo-kabanas.jpg',
   },
 };
 
@@ -24,21 +38,14 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  themeColor: '#171717',
+  themeColor: '#000000',
   viewportFit: 'cover',
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const store = await getActiveStore();
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
-      <body>
-        <SplashScreen storeName={store?.name} tagline={store?.tagline} logoUrl={store?.logo_url} />
-        {children}
-        <CartHydration />
-        <ServiceWorkerRegister />
-      </body>
+    <html lang="pt-BR" className={`${dmSans.variable} ${rye.variable}`}>
+      <body className="font-sans">{children}</body>
     </html>
   );
 }

@@ -1,23 +1,42 @@
-# dependencies
-/node_modules
+# --- Dependências ---
+node_modules/
+print-agent/node_modules/
 
-# next.js
-/.next/
-/out/
+# --- Next.js ---
+.next/
+out/
 
-# production
-/build
-
-# env
-.env
-.env.local
-.env*.local
-
-# misc
-.DS_Store
-*.pem
-npm-debug.log*
-
-# typescript
+# --- Builds e artefatos ---
+/build/
+print-agent/dist/
 *.tsbuildinfo
 next-env.d.ts
+
+# --- Variáveis de ambiente e segredos ---
+.env
+.env.*
+!.env.example
+print-agent/config.json
+
+# --- Vercel ---
+.vercel/
+
+# --- Logs ---
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Sistema operacional ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Editores (opcional) ---
+.idea/
+*.swp
+*.swo
+
+# --- Certificados ---
+*.pem

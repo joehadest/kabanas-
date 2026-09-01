@@ -1,0 +1,9 @@
+{
+  "appUrl": "https://kabanasbeer.webpulseservicos.com",
+  "storeId": "uuid-da-loja-em-store_settings",
+  "agentSecret": "cole-o-token-gerado-em-admin-impressao",
+  "listenPort": 9100,
+  "pollIntervalMs": 4000,
+  "kitchenPrinter": "Microsoft Print to PDF",
+  "customerPrinter": "Microsoft Print to PDF"
+}

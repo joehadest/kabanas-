@@ -34,16 +34,16 @@ export function OrderCard({ order, onAdvance, onCancel, index = 0 }: Props) {
     <div
       style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
       className={clsx(
-        'space-y-3 border border-[#dfdbd0] border-l-4 bg-white p-4 shadow-[0_2px_0_rgba(28,29,26,0.06)] transition-shadow animate-fade-in-up hover:shadow-[0_8px_18px_rgba(28,29,26,0.12)]',
+        'space-y-3 border border-border border-l-4 bg-surface-elevated p-4 shadow-[0_2px_0_rgba(28,29,26,0.06)] transition-shadow animate-fade-in-up hover:shadow-[0_8px_18px_rgba(28,29,26,0.12)]',
         STATUS_BORDER[order.status]
       )}
     >
       <div className="flex items-center justify-between">
-        <span className="font-serif text-lg font-bold text-[#1c1d1a]">#{order.order_code}</span>
+        <span className="font-serif text-lg font-bold text-ink">#{order.order_code}</span>
         <span className="text-xs text-neutral-400">{formatOrderTime(order.created_at)}</span>
       </div>
 
-      <ul className="text-xs text-neutral-600 space-y-0.5">
+      <ul className="text-xs text-neutral-400 space-y-0.5">
         {order.items?.map((item) => (
           <li key={item.id} className="flex justify-between gap-2">
             <span className="line-clamp-1">
@@ -58,7 +58,7 @@ export function OrderCard({ order, onAdvance, onCancel, index = 0 }: Props) {
         <span className={clsx('px-2 py-1 text-[10px] font-bold uppercase tracking-wide', PAYMENT_BADGE_CLASS)}>
           {PAYMENT_LABEL[order.payment_method]}
         </span>
-        <span className="font-bold text-[#1c1d1a]">{formatCurrency(order.total)}</span>
+        <span className="font-bold text-ink">{formatCurrency(order.total)}</span>
       </div>
 
       {order.status !== 'delivered' && order.status !== 'cancelled' && (
@@ -73,7 +73,7 @@ export function OrderCard({ order, onAdvance, onCancel, index = 0 }: Props) {
           )}
           <button
             onClick={() => onCancel(order.id)}
-            className="h-9 border border-[#d8d4c9] px-3 text-xs font-bold text-neutral-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600"
+            className="h-9 border border-border px-3 text-xs font-bold text-neutral-500 transition-colors hover:border-red-300 hover:bg-red-500/10 hover:text-red-600"
           >
             Cancelar
           </button>
@@ -83,7 +83,7 @@ export function OrderCard({ order, onAdvance, onCancel, index = 0 }: Props) {
   );
 }
 
-const PAYMENT_BADGE_CLASS = 'bg-[#e7e4dc] text-neutral-600';
+const PAYMENT_BADGE_CLASS = 'bg-[#e7e4dc] text-neutral-400';
 
 const ADVANCE_LABEL: Record<OrderStatus, string> = {
   received: 'Confirmar recebido',

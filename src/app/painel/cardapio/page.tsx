@@ -34,8 +34,8 @@ export default async function CardapioPage() {
       <div className="mx-auto max-w-7xl space-y-8">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-700">Gestao de produtos</p>
-          <h1 className="mt-2 font-serif text-3xl font-bold leading-none text-[#1c1d1a]">Cardápio</h1>
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-300">Gestao de produtos</p>
+          <h1 className="mt-2 font-serif text-3xl font-bold leading-none text-ink">Cardápio</h1>
         </div>
         <button className="bg-brand-400 px-4 py-3 text-sm font-black text-neutral-950 shadow-[0_4px_0_#a16207] transition-all hover:bg-brand-300 active:translate-y-0.5 active:shadow-none">
           + Novo produto
@@ -44,7 +44,7 @@ export default async function CardapioPage() {
 
       {(categories ?? []).map((cat, catIdx) => (
         <section key={cat.id} style={{ animationDelay: `${catIdx * 80}ms` }} className="animate-fade-in-up">
-          <h2 className="mb-3 flex items-center gap-2 font-serif text-xl font-bold text-[#1c1d1a]">
+          <h2 className="mb-3 flex items-center gap-2 font-serif text-xl font-bold text-ink">
             <span className="h-2 w-2 bg-brand-400" />
             {cat.name}
           </h2>
@@ -54,15 +54,15 @@ export default async function CardapioPage() {
               .map((product) => (
                 <div
                   key={product.id}
-                  className="flex items-center justify-between border border-[#d8d4c9] bg-[#faf9f5] p-4 transition-all hover:-translate-y-0.5 hover:border-brand-500 hover:shadow-[0_8px_18px_rgba(28,29,26,0.1)]"
+                  className="flex items-center justify-between border border-border bg-surface-elevated p-4 transition-all hover:-translate-y-0.5 hover:border-brand-500 hover:shadow-[0_8px_18px_rgba(28,29,26,0.1)]"
                 >
                   <div>
-                    <p className="font-serif text-lg font-bold text-[#1c1d1a]">{product.name}</p>
+                    <p className="font-serif text-lg font-bold text-ink">{product.name}</p>
                     <p className="mt-1 text-sm font-bold text-brand-800">{formatCurrency(product.price)}</p>
                   </div>
                   <span
                     className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${
-                      product.is_available ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      product.is_available ? 'bg-brand-400/15 text-brand-400' : 'bg-red-100 text-red-400'
                     }`}
                   >
                     {product.is_available ? 'Disponível' : 'Indisponível'}

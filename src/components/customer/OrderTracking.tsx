@@ -49,8 +49,8 @@ export function OrderTracking({ initialOrder }: { initialOrder: Order }) {
   const currentIndex = ORDER_STATUS_FLOW.indexOf(order.status);
 
   return (
-    <div className="min-h-screen pb-8">
-      <header className="bg-neutral-900 px-4 pt-6 pb-8 safe-top">
+    <div className="min-h-screen bg-black pb-8 text-ink">
+      <header className="border-b border-white/10 bg-black px-4 pb-8 pt-6 safe-top">
         <div className="max-w-xl mx-auto">
           <p className="text-xs text-neutral-400">Pedido #{order.order_code}</p>
           <h1
@@ -64,7 +64,7 @@ export function OrderTracking({ initialOrder }: { initialOrder: Order }) {
       </header>
 
       <div className="px-4 -mt-4 max-w-xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-floating p-4 animate-fade-in-up">
+        <div className="card p-4 animate-fade-in-up">
           <ol className="space-y-0">
             {ORDER_STATUS_FLOW.map((status, idx) => {
               const isDone = idx <= currentIndex;
@@ -76,20 +76,20 @@ export function OrderTracking({ initialOrder }: { initialOrder: Order }) {
                     <span
                       className={clsx(
                         'h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors duration-300',
-                        isDone ? 'bg-brand-500 text-neutral-900' : 'bg-neutral-200 text-neutral-400',
-                        isCurrent && 'ring-4 ring-brand-100'
+                        isDone ? 'bg-brand-500 text-ink' : 'bg-neutral-800 text-neutral-400',
+                        isCurrent && 'ring-4 ring-brand-400/25'
                       )}
                     >
                       {isDone ? '✓' : idx + 1}
                     </span>
                     {!isLast && (
                       <span
-                        className={clsx('w-0.5 flex-1 min-h-[28px] transition-colors duration-300', isDone ? 'bg-brand-500' : 'bg-neutral-200')}
+                        className={clsx('w-0.5 flex-1 min-h-[28px] transition-colors duration-300', isDone ? 'bg-brand-500' : 'bg-neutral-800')}
                       />
                     )}
                   </div>
                   <div className="pb-6">
-                    <p className={clsx('text-sm font-medium', isDone ? 'text-neutral-900' : 'text-neutral-400')}>
+                    <p className={clsx('text-sm font-medium', isDone ? 'text-ink' : 'text-neutral-400')}>
                       {ORDER_STATUS_LABEL[status]}
                     </p>
                   </div>
@@ -99,27 +99,27 @@ export function OrderTracking({ initialOrder }: { initialOrder: Order }) {
           </ol>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm p-4 mt-4 animate-fade-in-up [animation-delay:80ms]">
-          <h2 className="font-semibold text-sm text-neutral-800 mb-2">Itens do pedido</h2>
+        <div className="card mt-4 p-4 animate-fade-in-up [animation-delay:80ms]">
+          <h2 className="font-semibold text-sm text-neutral-200 mb-2">Itens do pedido</h2>
           <ul className="space-y-1.5">
             {order.items?.map((item) => (
               <li key={item.id} className="flex justify-between text-sm">
-                <span className="text-neutral-600">
+                <span className="text-neutral-400">
                   {item.quantity}x {item.product_name}
                 </span>
-                <span className="text-neutral-900 font-medium">{formatCurrency(item.total_price)}</span>
+                <span className="text-ink font-medium">{formatCurrency(item.total_price)}</span>
               </li>
             ))}
           </ul>
-          <div className="flex justify-between text-sm font-bold text-neutral-900 pt-3 mt-2 border-t border-neutral-100">
+          <div className="flex justify-between text-sm font-bold text-ink pt-3 mt-2 border-t border-border">
             <span>Total</span>
             <span>{formatCurrency(order.total)}</span>
           </div>
         </div>
 
         {order.address && (
-          <div className="bg-white rounded-2xl shadow-sm p-4 mt-4 animate-fade-in-up [animation-delay:140ms]">
-            <h2 className="font-semibold text-sm text-neutral-800 mb-1">Endereço de entrega</h2>
+          <div className="card mt-4 p-4 animate-fade-in-up [animation-delay:140ms]">
+            <h2 className="font-semibold text-sm text-neutral-200 mb-1">Endereço de entrega</h2>
             <p className="text-sm text-neutral-500">
               {order.address.street}, {order.address.number} — {order.address.neighborhood}
             </p>

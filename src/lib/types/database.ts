@@ -89,6 +89,11 @@ export interface Product {
   price: number;
   promo_price: number | null;
   image_url: string | null;
+  cost_price?: number;
+  packaging_cost?: number;
+  other_variable_cost?: number;
+  tax_rate?: number;
+  sort_order?: number;
   is_active: boolean;
   is_available: boolean;
   option_groups?: ProductOptionGroup[];

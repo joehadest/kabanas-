@@ -3,17 +3,24 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import clsx from 'clsx';
+import { LogOut, Store } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { MagneticDock, type DockItemData } from '@/components/ui/magnetic-dock';
+import { KabanasLogo } from '@/components/shared/KabanasLogo';
+import { BRAND } from '@/lib/brand';
 import { IconOverview, IconOrders, IconMenuBook, IconStock, IconClock, IconSettings } from './AdminDockIcons';
 
 const NAV_LINKS = [
-  { href: '/admin', label: 'Visao geral', shortLabel: 'Inicio', icon: IconOverview },
-  { href: '/admin/pedidos', label: 'Pedidos', shortLabel: 'Pedidos', icon: IconOrders },
-  { href: '/admin/cardapio', label: 'Cardápio', shortLabel: 'Cardápio', icon: IconMenuBook },
-  { href: '/admin/estoque', label: 'Estoque', shortLabel: 'Estoque', icon: IconStock },
-  { href: '/admin/horarios', label: 'Horários', shortLabel: 'Horários', icon: IconClock },
-  { href: '/admin/configuracoes', label: 'Configurações', shortLabel: 'Ajustes', icon: IconSettings },
+  { href: '/admin', label: 'Visão geral', shortLabel: 'Início', icon: IconOverview },
+  { href: '/admin/pdv', label: 'Vendas e mesas', shortLabel: 'Vendas', icon: IconOrders },
+  { href: '/admin/caixa', label: 'Caixa', shortLabel: 'Caixa', icon: IconOverview },
+  { href: '/admin/cardapio', label: 'Cardápio', shortLabel: 'Menu', icon: IconMenuBook },
+  { href: '/admin/precificacao', label: 'Precificação', shortLabel: 'Lucro', icon: IconClock },
+  { href: '/admin/inventario', label: 'Inventário', shortLabel: 'Estoque', icon: IconStock },
+  { href: '/admin/despesas', label: 'Despesas', shortLabel: 'Despesas', icon: IconStock },
+  { href: '/admin/relatorios', label: 'Relatórios', shortLabel: 'Relatórios', icon: IconClock },
+  { href: '/admin/impressao', label: 'Impressão', shortLabel: 'Imprimir', icon: IconSettings },
+  { href: '/admin/configuracoes', label: 'Taxas e ajustes', shortLabel: 'Ajustes', icon: IconSettings },
 ];
 
 interface Props {
@@ -45,62 +52,92 @@ export function AdminShell({ userEmail, children }: Props) {
   });
 
   return (
-    <div className="min-h-screen bg-[#eeece5] text-[#1c1d1a] md:flex">
-      <aside className="hidden w-64 shrink-0 bg-[#1c1d1a] p-5 md:flex md:flex-col">
-        <Link href="/admin" className="mb-12 flex items-center gap-3 text-white">
-          <span className="flex h-10 w-10 items-center justify-center bg-brand-400 font-serif text-xl font-black text-neutral-950">K</span>
-          <span>
-            <span className="block font-serif text-xl font-bold leading-none">Kabanas</span>
-            <span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.18em] text-brand-300">Administraçao</span>
-          </span>
-        </Link>
-        <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500">Gestao</p>
-        <nav className="space-y-1">
-          {NAV_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={clsx(
-                'block border-l-2 px-3 py-3 text-sm transition-colors',
-                isActive(link.href)
-                  ? 'border-brand-400 bg-white/10 font-bold text-white'
-                  : 'border-transparent font-medium text-neutral-400 hover:border-white/30 hover:bg-white/5 hover:text-white'
-              )}
+    <div className="min-h-screen bg-black text-ink md:flex">
+      {/* Sidebar desktop */}
+      <aside className="hidden w-[17rem] shrink-0 flex-col border-r border-white/5 bg-black md:flex">
+        <div className="flex flex-1 flex-col p-5">
+          <Link href="/admin" className="mb-10 rounded-2xl p-2 transition-colors hover:bg-white/5">
+            <KabanasLogo variant="lockup" size="md" subtitle="Gestão do negócio" />
+          </Link>
+
+          <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500">Menu</p>
+          <nav className="space-y-0.5 overflow-y-auto scrollbar-none">
+            {NAV_LINKS.map((link) => {
+              const Icon = link.icon;
+              const active = isActive(link.href);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={clsx(
+                    'flex items-center gap-3 rounded-xl border-l-[3px] px-3 py-2.5 text-sm transition-all duration-150',
+                    active
+                      ? 'nav-item-active'
+                      : 'border-transparent font-medium text-neutral-400 hover:border-white/20 hover:bg-white/5 hover:text-white'
+                  )}
+                >
+                  <span className={clsx('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', active ? 'bg-brand-400/20 text-brand-300' : 'text-neutral-500')}>
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  {link.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="mt-auto space-y-3 border-t border-white/10 pt-5">
+            <div className="rounded-xl bg-white/5 px-3 py-3">
+              <p className="truncate text-xs font-medium text-neutral-300" title={userEmail}>
+                {userEmail}
+              </p>
+              <span className="mt-2 inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-brand-300">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-400 opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-400" />
+                </span>
+                Loja online
+              </span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-3 py-2.5 text-xs font-bold text-neutral-400 transition-all hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-300"
             >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="mt-auto border-t border-white/10 pt-4">
-          <p className="truncate text-xs font-medium text-neutral-400" title={userEmail}>
-            {userEmail}
-          </p>
-          <span className="mt-2 inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-brand-300">
-            <span className="h-1.5 w-1.5 rounded-full bg-brand-400" /> Loja online
-          </span>
-          <button
-            onClick={handleLogout}
-            className="mt-4 w-full border border-white/15 px-3 py-2.5 text-xs font-bold text-neutral-300 transition-colors hover:border-red-400/50 hover:bg-red-500/10 hover:text-red-300"
-          >
-            Sair da conta
-          </button>
+              <LogOut size={14} />
+              Sair da conta
+            </button>
+          </div>
         </div>
       </aside>
-      <header className="flex items-center justify-between bg-[#1c1d1a] px-4 py-4 text-white md:hidden">
-        <Link href="/admin" className="font-serif text-xl font-bold">Kabanas</Link>
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-brand-300">Administraçao</span>
+
+      {/* Header mobile */}
+      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-white/5 bg-black/95 px-4 py-3.5 text-white backdrop-blur-xl safe-top md:hidden">
+        <Link href="/admin" className="flex items-center gap-2.5">
+          <KabanasLogo variant="mark" size="sm" />
+          <span className="font-serif text-lg font-bold">{BRAND.shortName}</span>
+        </Link>
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-brand-300">
+            <Store size={12} />
+            Gestão
+          </span>
           <button
             onClick={handleLogout}
-            className="border border-white/15 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-neutral-300 transition-colors hover:border-red-400/50 hover:text-red-300"
+            className="flex items-center gap-1.5 rounded-xl border border-white/10 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-neutral-400 transition-colors hover:border-red-400/40 hover:text-red-300"
           >
+            <LogOut size={13} />
             Sair
           </button>
         </div>
       </header>
-      <div className="min-w-0 flex-1 pb-24 md:pb-0">{children}</div>
-      <div className="fixed inset-x-0 bottom-0 z-30 flex justify-center pb-[calc(env(safe-area-inset-bottom)+0.75rem)] md:hidden">
-        <MagneticDock items={dockItems} iconSize={42} maxScale={1.3} magneticDistance={90} variant="glass" />
+
+      {/* Conteúdo principal */}
+      <div className="min-w-0 flex-1 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0">
+        {children}
+      </div>
+
+      {/* Dock mobile */}
+      <div className="fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] md:hidden">
+        <MagneticDock items={dockItems} iconSize={40} maxScale={1.25} magneticDistance={80} variant="glass" />
       </div>
     </div>
   );

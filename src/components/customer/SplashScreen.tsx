@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
-import { StoreLogo } from '@/components/shared/StoreLogo';
+import { KabanasLogo } from '@/components/shared/KabanasLogo';
+import { BRAND } from '@/lib/brand';
 
 interface Props {
   storeName?: string | null;
@@ -10,12 +11,11 @@ interface Props {
   logoUrl?: string | null;
 }
 
-export function SplashScreen({ storeName, tagline, logoUrl }: Props) {
+export function SplashScreen({ storeName, tagline }: Props) {
   const [mounted, setMounted] = useState(true);
   const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
-    // Só mostra no primeiro carregamento do PWA instalado (evita "piscar" a cada navegação em SPA)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
     if (!isStandalone) {
       setMounted(false);
@@ -31,21 +31,23 @@ export function SplashScreen({ storeName, tagline, logoUrl }: Props) {
 
   if (!mounted) return null;
 
-  const name = storeName || 'Kabanas Delivery';
+  const name = storeName || BRAND.name;
 
   return (
     <div
       className={clsx(
-        'fixed inset-0 z-[100] flex flex-col items-center justify-center bg-neutral-900 text-white transition-opacity duration-300',
+        'fixed inset-0 z-[100] flex flex-col items-center justify-center bg-kabanas-charcoal text-white transition-opacity duration-300',
         leaving ? 'opacity-0' : 'opacity-100'
       )}
     >
-      <div className="animate-bounce-in shadow-glow rounded-3xl">
-        <StoreLogo logoUrl={logoUrl} name={name} size="lg" className="text-4xl" />
+      <div className="animate-bounce-in">
+        <KabanasLogo variant="badge" size="xl" className="shadow-glow-lg" />
       </div>
-      <p className="text-lg font-semibold tracking-tight mt-4 animate-fade-in-up [animation-delay:150ms]">{name}</p>
-      <p className="text-sm text-neutral-400 mt-1 animate-fade-in-up [animation-delay:250ms]">
-        {tagline || 'Sua fome, no caminho certo.'}
+      <p className="mt-5 animate-fade-in-up font-display text-lg tracking-wide [animation-delay:150ms]">
+        {name}
+      </p>
+      <p className="mt-1 animate-fade-in-up text-xs font-semibold uppercase tracking-[0.14em] text-brand-300 [animation-delay:200ms]">
+        {tagline || BRAND.tagline}
       </p>
     </div>
   );

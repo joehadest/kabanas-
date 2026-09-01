@@ -15,7 +15,7 @@ export default async function PainelLayout({ children }: { children: React.React
 
   if (!profile || (profile.role !== 'admin' && profile.role !== 'restaurant')) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#1c1d1a] px-6 text-center">
+      <div className="flex min-h-screen items-center justify-center bg-black px-6 text-center">
         <div className="max-w-sm">
           <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-brand-300">Acesso restrito</p>
           <h1 className="mb-2 font-serif text-2xl font-bold text-white">Esta conta não tem permissão de operador</h1>

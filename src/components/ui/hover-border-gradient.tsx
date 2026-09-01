@@ -69,7 +69,7 @@ function HoverBorderGradient({
     >
       <div
         className={cn(
-          'z-10 w-auto rounded-[inherit] bg-[#1c1d1a] px-5 py-3 text-sm font-black tracking-wide text-white',
+          'z-10 w-auto rounded-[inherit] bg-black px-5 py-3 text-sm font-black tracking-wide text-white',
           className
         )}
       >
@@ -82,7 +82,7 @@ function HoverBorderGradient({
         animate={{ background: hovered ? [movingMap[direction], highlight] : movingMap[direction] }}
         transition={{ ease: 'linear', duration }}
       />
-      <div className="absolute inset-0.5 z-[1] flex-none rounded-[100px] bg-[#1c1d1a]" />
+      <div className="absolute inset-0.5 z-[1] flex-none rounded-[100px] bg-black" />
     </Element>
   );
 }

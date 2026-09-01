@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { getActiveStore } from '@/lib/data/get-store';
 import { CardapioManager } from '@/components/admin/CardapioManager';
+import { PageContainer } from '@/components/ui/page-layout';
 import type { Category, Product } from '@/lib/types/database';
 
 export const revalidate = 0;
@@ -11,7 +12,7 @@ export default async function AdminCardapioPage() {
 
   const supabase = await createClient();
 
-  const [{ data: categories }, { data: products }] = await Promise.all([
+  const [{ data: categories }, { data: products }, { data: storeRow }] = await Promise.all([
     supabase.from('categories').select('*').eq('store_id', store.id).order('sort_order').returns<Category[]>(),
     supabase
       .from('products')
@@ -19,13 +20,17 @@ export default async function AdminCardapioPage() {
       .eq('store_id', store.id)
       .order('sort_order')
       .returns<Product[]>(),
+    supabase.from('store_settings').select('default_tax_rate').eq('id', store.id).single(),
   ]);
 
   return (
-    <div className="h-full overflow-y-auto p-4 sm:p-7">
-      <div className="mx-auto max-w-7xl">
-        <CardapioManager storeId={store.id} initialCategories={categories ?? []} initialProducts={products ?? []} />
-      </div>
-    </div>
+    <PageContainer>
+      <CardapioManager
+        storeId={store.id}
+        defaultTaxRate={Number(storeRow?.default_tax_rate ?? 0)}
+        initialCategories={categories ?? []}
+        initialProducts={products ?? []}
+      />
+    </PageContainer>
   );
 }

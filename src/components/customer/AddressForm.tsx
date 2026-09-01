@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { inputClass } from '@/components/ui/input';
 import type { Address } from '@/lib/types/database';
 
 interface Props {
@@ -10,9 +11,6 @@ interface Props {
   onSaved: (address: Address) => void;
   onCancel?: () => void;
 }
-
-const INPUT_CLASS =
-  'w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 transition-colors';
 
 const EMPTY_FORM = {
   label: 'Casa',
@@ -63,34 +61,34 @@ export function AddressForm({ userId, guestId, onSaved, onCancel }: Props) {
   };
 
   return (
-    <div className="rounded-xl border border-neutral-200 p-3.5 space-y-2.5 animate-fade-in">
-      <input placeholder="Rótulo (Casa, Trabalho...)" value={form.label} onChange={set('label')} className={INPUT_CLASS} />
+    <div className="card-muted space-y-2.5 p-3.5 animate-fade-in">
+      <input placeholder="Rótulo (Casa, Trabalho...)" value={form.label} onChange={set('label')} className={inputClass} />
       <div className="grid grid-cols-2 gap-2.5">
-        <input placeholder="CEP" value={form.zip_code} onChange={set('zip_code')} className={INPUT_CLASS} />
-        <input placeholder="Número" value={form.number} onChange={set('number')} className={INPUT_CLASS} />
+        <input placeholder="CEP" value={form.zip_code} onChange={set('zip_code')} className={inputClass} />
+        <input placeholder="Número" value={form.number} onChange={set('number')} className={inputClass} />
       </div>
-      <input placeholder="Rua" value={form.street} onChange={set('street')} className={INPUT_CLASS} />
-      <input placeholder="Complemento (opcional)" value={form.complement} onChange={set('complement')} className={INPUT_CLASS} />
+      <input placeholder="Rua" value={form.street} onChange={set('street')} className={inputClass} />
+      <input placeholder="Complemento (opcional)" value={form.complement} onChange={set('complement')} className={inputClass} />
       <div className="grid grid-cols-2 gap-2.5">
-        <input placeholder="Bairro" value={form.neighborhood} onChange={set('neighborhood')} className={INPUT_CLASS} />
-        <input placeholder="Cidade" value={form.city} onChange={set('city')} className={INPUT_CLASS} />
+        <input placeholder="Bairro" value={form.neighborhood} onChange={set('neighborhood')} className={inputClass} />
+        <input placeholder="Cidade" value={form.city} onChange={set('city')} className={inputClass} />
       </div>
       <input
         placeholder="Estado (UF)"
         maxLength={2}
         value={form.state}
         onChange={(e) => setForm((f) => ({ ...f, state: e.target.value.toUpperCase() }))}
-        className={INPUT_CLASS}
+        className={inputClass}
       />
 
-      {error && <p className="text-xs text-red-500 animate-fade-in">{error}</p>}
+      {error && <p className="text-xs text-red-400 animate-fade-in">{error}</p>}
 
       <div className="flex gap-2 pt-1">
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 h-10 rounded-xl border border-neutral-200 text-sm text-neutral-600 hover:bg-neutral-50 transition-colors"
+            className="h-10 rounded-xl border border-border px-4 text-sm text-neutral-400 transition-colors hover:bg-white/5"
           >
             Cancelar
           </button>
@@ -99,7 +97,7 @@ export function AddressForm({ userId, guestId, onSaved, onCancel }: Props) {
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="flex-1 h-10 rounded-xl bg-brand-500 text-neutral-900 text-sm font-bold disabled:opacity-40 hover:bg-brand-400 active:scale-[0.98] transition-all"
+          className="h-10 flex-1 rounded-xl bg-brand-400 text-sm font-bold text-neutral-950 transition-all hover:bg-brand-300 active:scale-[0.98] disabled:opacity-40"
         >
           {saving ? 'Salvando...' : 'Salvar endereço'}
         </button>

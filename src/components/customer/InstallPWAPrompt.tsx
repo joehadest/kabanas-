@@ -65,7 +65,7 @@ export function InstallPWAPrompt({ storeName, logoUrl }: Props) {
       {!isIos && (
         <button
           onClick={handleInstall}
-          className="mt-3 w-full rounded-xl bg-brand-500 text-neutral-900 py-2.5 text-sm font-bold active:scale-[0.98] hover:bg-brand-400 transition-all"
+          className="mt-3 w-full rounded-xl bg-brand-500 text-ink py-2.5 text-sm font-bold active:scale-[0.98] hover:bg-brand-400 transition-all"
         >
           Instalar aplicativo
         </button>
