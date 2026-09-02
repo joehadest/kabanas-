@@ -411,14 +411,21 @@ export function ProductProfitManager({ storeId, products: initialProducts, categ
           subtitle={editing ? 'Editar produto' : 'Novo cadastro'}
           description="Calcule margem real com custos, taxas e impostos."
           size="2xl"
+          headerActions={
+            editing ? (
+              <button
+                type="button"
+                title="Excluir produto"
+                aria-label="Excluir produto"
+                onClick={() => remove(editing)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl text-red-400 transition-colors hover:bg-red-500/10 sm:h-9 sm:w-9"
+              >
+                <Trash2 size={16} />
+              </button>
+            ) : undefined
+          }
           footer={
             <ModalFooter>
-              {editing && (
-                <Button variant="danger" size="md" onClick={() => remove(editing)} className="normal-case sm:mr-auto">
-                  <Trash2 size={16} />
-                  Excluir produto
-                </Button>
-              )}
               <Button variant="secondary" size="md" onClick={() => setEditing(undefined)} className="normal-case">
                 Cancelar
               </Button>

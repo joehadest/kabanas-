@@ -54,7 +54,7 @@ export interface PrintJobRecord {
   id: string;
   job_type: PrintJobType;
   status: PrintJobStatus;
-  payload: PrintJobPayload;
+  payload?: PrintJobPayload;
   error_message?: string | null;
   created_at: string;
   printed_at?: string | null;

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { formatCurrency } from '@/lib/utils/format';
 import type { CustomerReceiptPayload, KitchenTicketPayload, PrintJobType } from '@/lib/printing/types';
 import { cn } from '@/lib/utils';
@@ -17,6 +18,13 @@ function isKitchen(payload: KitchenTicketPayload | CustomerReceiptPayload): payl
 
 export function PrintPreview({ jobType, payload, paperWidth = 80, className }: Props) {
   const widthClass = paperWidth === 58 ? 'max-w-[220px]' : 'max-w-[302px]';
+  // Evita mismatch de hidratação: o horário atual difere entre o render no
+  // servidor e o momento da hidratação no cliente. Começa vazio (igual nos
+  // dois lados) e só preenche depois de montar, só no cliente.
+  const [now, setNow] = useState('');
+  useEffect(() => {
+    setNow(new Date().toLocaleString('pt-BR'));
+  }, []);
 
   if (jobType === 'kitchen_ticket' || isKitchen(payload)) {
     return (
@@ -42,7 +50,7 @@ export function PrintPreview({ jobType, payload, paperWidth = 80, className }: P
           ))}
         </div>
         <p className="border-t border-dashed border-black px-3 py-2 text-center text-[9px] text-neutral-600">
-          {new Date().toLocaleString('pt-BR')}
+          {now}
         </p>
       </div>
     );

@@ -10,6 +10,7 @@ import { formatCurrency } from '@/lib/utils/format';
 import { Button } from '@/components/ui/button';
 import { ListSearchBar } from '@/components/ui/collapsible-list';
 import { Input } from '@/components/ui/input';
+import { useOverlayLock } from '@/lib/ui/use-overlay-lock';
 
 export interface PosProduct {
   id: string;
@@ -397,6 +398,7 @@ function AddQuantitySheet({
   variant?: 'sheet' | 'popover';
 }) {
   const [mounted, setMounted] = useState(false);
+  useOverlayLock(true);
   const total = product.price * quantity;
 
   useEffect(() => setMounted(true), []);
@@ -410,10 +412,8 @@ function AddQuantitySheet({
       )}
       <div
         className={clsx(
-          'overflow-y-auto p-5',
-          variant === 'sheet'
-            ? 'max-h-[min(70vh,420px)] pb-[calc(1.25rem+env(safe-area-inset-bottom))]'
-            : 'pb-5'
+          'overflow-y-auto overscroll-contain p-5',
+          variant === 'sheet' ? 'max-h-[min(58dvh,360px)]' : 'pb-5'
         )}
       >
         <div className="mb-4 flex items-start gap-3">
@@ -434,7 +434,7 @@ function AddQuantitySheet({
             type="button"
             onClick={onClose}
             aria-label="Fechar"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-neutral-700 bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-white"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-neutral-700 bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-white"
           >
             <X size={17} />
           </button>
@@ -455,24 +455,41 @@ function AddQuantitySheet({
           />
         </div>
 
-        <Button
-          variant="primary"
-          size="lg"
-          fullWidth
-          disabled={loading}
-          onClick={onConfirm}
-          className="mt-5 normal-case"
-        >
-          {loading ? 'Adicionando...' : `Adicionar ${quantity}x à comanda`}
-        </Button>
+        {variant === 'popover' && (
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth
+            disabled={loading}
+            onClick={onConfirm}
+            className="mt-5 min-h-11 normal-case"
+          >
+            {loading ? 'Adicionando...' : `Adicionar ${quantity}x à comanda`}
+          </Button>
+        )}
       </div>
+
+      {variant === 'sheet' && (
+        <div className="shrink-0 border-t border-neutral-700 px-5 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth
+            disabled={loading}
+            onClick={onConfirm}
+            className="min-h-11 normal-case"
+          >
+            {loading ? 'Adicionando...' : `Adicionar ${quantity}x à comanda`}
+          </Button>
+        </div>
+      )}
     </>
   );
 
   if (!mounted) return null;
 
   const panelClass =
-    'relative w-full overflow-hidden rounded-2xl border border-neutral-700 shadow-[0_24px_64px_rgba(0,0,0,0.65)]';
+    'w-full overflow-hidden rounded-2xl border border-neutral-700 shadow-[0_24px_64px_rgba(0,0,0,0.65)]';
   const panelStyle = { backgroundColor: '#141414' } as const;
 
   const ui =
@@ -493,7 +510,7 @@ function AddQuantitySheet({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 12 }}
           transition={{ type: 'spring', damping: 28, stiffness: 360 }}
-          className={clsx(panelClass, 'z-10 max-w-md 2xl:max-w-lg')}
+          className={clsx(panelClass, 'relative z-10 max-w-md 2xl:max-w-lg')}
           style={panelStyle}
         >
           {content}
@@ -701,7 +718,7 @@ export function PosProductPicker({
         onConfirm={confirmPick}
         onClose={closePick}
         loading={addingId === pendingProduct.id}
-        variant={compact ? 'sheet' : 'popover'}
+        variant="popover"
         />
       )}
     </AnimatePresence>

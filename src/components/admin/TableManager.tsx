@@ -216,13 +216,18 @@ export function TableManager({ storeId, areas: initialAreas, tables: initialTabl
                 ))}
               </Select>
             </FieldGroup>
-            <div className="flex gap-2 sm:col-span-2">
+            <div className="grid grid-cols-2 gap-2 sm:col-span-2 sm:flex sm:w-auto">
               {editingId && (
-                <Button type="button" variant="secondary" size="md" onClick={resetForm} className="normal-case">
+                <Button type="button" variant="secondary" size="md" onClick={resetForm} className="normal-case sm:w-auto">
                   Cancelar edição
                 </Button>
               )}
-              <Button type="submit" variant="primary" size="md" className="normal-case">
+              <Button
+                type="submit"
+                variant="primary"
+                size="md"
+                className={clsx('normal-case sm:w-auto', !editingId && 'col-span-2 sm:col-span-1')}
+              >
                 <LayoutGrid size={15} />
                 {editingId ? 'Salvar mesa' : 'Adicionar mesa'}
               </Button>

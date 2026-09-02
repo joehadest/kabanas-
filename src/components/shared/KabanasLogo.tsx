@@ -86,6 +86,7 @@ export function KabanasLogo({
       <div
         className={clsx(
           'relative overflow-hidden rounded-full shadow-glow ring-2 ring-brand-400/70',
+          'bg-neutral-900',
           BADGE_SIZES[size]
         )}
         aria-label={BRAND.name}

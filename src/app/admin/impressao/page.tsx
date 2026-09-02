@@ -25,7 +25,7 @@ export default async function ImpressaoPage() {
       .order('name'),
     supabase
       .from('print_jobs')
-      .select('id,job_type,status,payload,error_message,created_at,printed_at,thermal_printers(name)')
+      .select('id,job_type,status,error_message,created_at,printed_at,thermal_printers(name)')
       .eq('store_id', store.id)
       .order('created_at', { ascending: false })
       .limit(40),

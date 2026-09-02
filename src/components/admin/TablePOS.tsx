@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { ChefHat, LayoutGrid, Plus, Printer, Receipt, ReceiptText, Trash2, Users, WalletCards, Banknote } from 'lucide-react';
+import { ChefHat, LayoutGrid, ListOrdered, MoreHorizontal, Plus, Printer, Receipt, ReceiptText, Trash2, Users, UtensilsCrossed, WalletCards, Banknote } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { formatCurrency, parseDecimal, relationOne, tableDisplayLabel } from '@/lib/utils/format';
@@ -239,6 +239,7 @@ export function TablePOS({
   const [savingTabDetails, setSavingTabDetails] = useState(false);
   const [removingSaleId, setRemovingSaleId] = useState<string | null>(null);
   const [voidingComanda, setVoidingComanda] = useState(false);
+  const [moreActionsOpen, setMoreActionsOpen] = useState(false);
 
   const normalizedSearch = search.trim().toLowerCase();
 
@@ -1020,9 +1021,11 @@ export function TablePOS({
           hero={
             isCompact ? (
               <div className="relative shrink-0 border-b border-border bg-surface-elevated px-4 py-3">
-                <div className="flex items-start justify-between gap-3 pr-10">
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-300">Comanda · {selected.name}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-300">
+                      Comanda · {selected.name}
+                    </p>
                     <p className="font-serif text-xl font-bold text-ink">{formatCurrency(total)}</p>
                     <p className="mt-0.5 text-xs text-neutral-500">
                       {isUnderpaid
@@ -1033,15 +1036,25 @@ export function TablePOS({
                       · {items.length} item{items.length !== 1 ? 's' : ''}
                     </p>
                   </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setMoreActionsOpen(true)}
+                      aria-label="Mais ações"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-black/30 text-neutral-400"
+                    >
+                      <MoreHorizontal size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelected(null)}
+                      aria-label="Fechar"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-surface-elevated text-neutral-500 shadow-sm"
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setSelected(null)}
-                  aria-label="Fechar"
-                  className="absolute right-4 top-3 flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-surface-elevated text-neutral-500 shadow-sm"
-                >
-                  ×
-                </button>
               </div>
             ) : (
             <div className="shrink-0 border-b border-border bg-surface-elevated px-4 py-3 sm:px-6">
@@ -1094,7 +1107,126 @@ export function TablePOS({
             )
           }
           footer={
-            <ModalFooter className="gap-2 sm:gap-3 xl:gap-4 2xl:px-2 [&_button]:w-full sm:[&_button]:w-auto">
+            isCompact ? (
+              <div className="flex flex-col gap-2.5">
+                <div className="flex gap-1 rounded-xl border border-border bg-surface-elevated p-1">
+                  {(
+                    [
+                      { id: 'add' as const, label: 'Cardápio', icon: UtensilsCrossed },
+                      { id: 'items' as const, label: 'Itens', icon: ListOrdered, badge: items.length },
+                      { id: 'pay' as const, label: 'Pagar', icon: WalletCards },
+                    ] as const
+                  ).map((tabItem) => {
+                    const Icon = tabItem.icon;
+                    const active = comandaTab === tabItem.id;
+                    return (
+                      <button
+                        key={tabItem.id}
+                        type="button"
+                        onClick={() => setComandaTab(tabItem.id)}
+                        className={clsx(
+                          'flex flex-1 touch-manipulation flex-col items-center gap-0.5 rounded-lg px-1 py-2 text-[10px] font-bold uppercase tracking-wide transition-colors',
+                          active ? 'bg-brand-600 text-white' : 'text-neutral-400'
+                        )}
+                      >
+                        <span className="relative">
+                          <Icon size={18} />
+                          {'badge' in tabItem && tabItem.badge > 0 && (
+                            <span
+                              className={clsx(
+                                'absolute -right-2.5 -top-1.5 min-w-[1.1rem] rounded-full px-1 text-[9px] leading-4',
+                                active ? 'bg-white/25 text-white' : 'bg-brand-400/20 text-brand-300'
+                              )}
+                            >
+                              {tabItem.badge}
+                            </span>
+                          )}
+                        </span>
+                        {tabItem.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {comandaTab === 'add' && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      onClick={() => setComandaTab('items')}
+                      className="normal-case"
+                    >
+                      <ListOrdered size={16} />
+                      Comanda{items.length ? ` (${items.length})` : ''}
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={() => setComandaTab('pay')}
+                      disabled={!items.length}
+                      className="normal-case"
+                    >
+                      <WalletCards size={16} />
+                      Pagamento
+                    </Button>
+                  </div>
+                )}
+
+                {comandaTab === 'items' && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button variant="secondary" size="md" onClick={() => setComandaTab('add')} className="normal-case">
+                      <Plus size={16} />
+                      Cardápio
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={() => setComandaTab('pay')}
+                      disabled={!items.length}
+                      className="normal-case"
+                    >
+                      <WalletCards size={16} />
+                      Ir pagar
+                    </Button>
+                  </div>
+                )}
+
+                {comandaTab === 'pay' && (
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={requestClose}
+                      disabled={!cashSession || !isBalanced || !items.length || closing}
+                      className="w-full normal-case"
+                    >
+                      <ReceiptText size={16} />
+                      {closing
+                        ? 'Fechando...'
+                        : isBalanced
+                          ? `Fechar venda · ${formatCurrency(total)}`
+                          : `Falta ${formatCurrency(Math.max(0, paymentDelta))}`}
+                    </Button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="secondary" size="md" onClick={() => setComandaTab('add')} className="normal-case">
+                        <UtensilsCrossed size={16} />
+                        Cardápio
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="md"
+                        onClick={() => setMoreActionsOpen(true)}
+                        className="normal-case"
+                      >
+                        <MoreHorizontal size={16} />
+                        Mais
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+            <ModalFooter layout="toolbar" className="gap-2 sm:gap-3 xl:gap-4 2xl:px-2 [&_button]:w-full sm:[&_button]:w-auto">
               <div className="flex w-full flex-col gap-2 sm:mr-auto sm:w-auto sm:flex-row">
                 <Button
                   variant="secondary"
@@ -1146,47 +1278,14 @@ export function TablePOS({
                 <span className="hidden sm:inline">{closing ? 'Fechando...' : 'Fechar e registrar venda'}</span>
               </Button>
             </ModalFooter>
+            )
           }
+          footerClassName={isCompact ? 'px-3 py-3' : undefined}
           bodyClassName={clsx(
-            'flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-3 sm:px-5 sm:py-4 xl:px-5 xl:py-4 2xl:px-6 2xl:py-4'
+            'flex min-h-0 flex-1 flex-col overflow-hidden',
+            isCompact ? 'px-3 py-2' : 'px-3 py-3 sm:px-5 sm:py-4 xl:px-5 xl:py-4 2xl:px-6 2xl:py-4'
           )}
         >
-          {isCompact && (
-          <div className="mb-3 flex shrink-0 gap-1 rounded-xl border border-border bg-surface-elevated p-1">
-            {(
-              [
-                { id: 'add' as const, label: 'Cardápio' },
-                { id: 'items' as const, label: 'Itens', badge: items.length },
-                { id: 'pay' as const, label: 'Pagamento' },
-              ] as const
-            ).map((tabItem) => (
-              <button
-                key={tabItem.id}
-                type="button"
-                onClick={() => setComandaTab(tabItem.id)}
-                className={clsx(
-                  'flex flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-xs font-bold transition-colors',
-                  comandaTab === tabItem.id
-                    ? 'bg-brand-600 text-white'
-                    : 'text-neutral-400 hover:bg-white/5'
-                )}
-              >
-                {tabItem.label}
-                {'badge' in tabItem && tabItem.badge > 0 && (
-                  <span
-                    className={clsx(
-                      'rounded-full px-1.5 py-0.5 text-[10px]',
-                      comandaTab === tabItem.id ? 'bg-white/20' : 'bg-brand-400/15 text-brand-300'
-                    )}
-                  >
-                    {tabItem.badge}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-          )}
-
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <div
               className={clsx(
@@ -1241,7 +1340,7 @@ export function TablePOS({
                   subtitle="Cliente, taxas e desconto"
                   open={tabDetailsOpen}
                   onOpenChange={setTabDetailsOpen}
-                  className="mb-3 shrink-0"
+                  className={clsx('mb-3 shrink-0', isCompact && comandaTab === 'pay' && 'hidden')}
                 >
                   <div className="space-y-3 rounded-2xl border border-border bg-surface-elevated p-3 sm:p-4">
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -1731,6 +1830,72 @@ export function TablePOS({
               O valor da comanda ({formatCurrency(financials.total)}) já está quitado. Devolva o troco ao cliente antes de
               fechar.
             </Alert>
+          </div>
+        </Modal>
+      )}
+
+      {moreActionsOpen && selected && tab && (
+        <Modal
+          open
+          onClose={() => setMoreActionsOpen(false)}
+          title="Mais ações"
+          size="sm"
+          variant="center"
+          motionPreset="fade"
+        >
+          <div className="grid gap-2">
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => {
+                setMoreActionsOpen(false);
+                void sendKitchen();
+              }}
+              disabled={!items.length}
+              className="w-full normal-case justify-start"
+            >
+              <Printer size={16} />
+              Imprimir cozinha
+            </Button>
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => {
+                setMoreActionsOpen(false);
+                void sendCustomerReceipt();
+              }}
+              disabled={!items.length}
+              className="w-full normal-case justify-start"
+            >
+              <Receipt size={16} />
+              Imprimir conta do cliente
+            </Button>
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => {
+                setMoreActionsOpen(false);
+                setSelected(null);
+              }}
+              className="w-full normal-case justify-start"
+            >
+              Voltar às mesas
+            </Button>
+            {(items.length > 0 || (tab.tab_payments?.length ?? 0) > 0) && (
+              <Button
+                variant="outline"
+                size="md"
+                onClick={() => {
+                  setMoreActionsOpen(false);
+                  void voidOpenComanda();
+                }}
+                disabled={voidingComanda}
+                className="w-full normal-case justify-start border-red-500/30 text-red-400 hover:border-red-500/50 hover:bg-red-500/10"
+              >
+                <Trash2 size={16} />
+                {voidingComanda ? 'Cancelando...' : 'Cancelar comanda'}
+              </Button>
+            )}
           </div>
         </Modal>
       )}

@@ -80,25 +80,25 @@ export function ProductModal({ product, onClose }: Props) {
         </div>
       }
       footer={
-        <div className="flex items-center gap-3">
-          <div className="flex items-center overflow-hidden rounded-xl border border-border bg-surface-elevated shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex w-full items-center justify-center overflow-hidden rounded-xl border border-border bg-surface-elevated shadow-sm sm:w-auto">
             <button
               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-              className="flex h-11 w-10 items-center justify-center text-lg text-neutral-400 transition-colors hover:bg-brand-400/15"
+              className="flex h-11 w-12 items-center justify-center text-lg text-neutral-400 transition-colors hover:bg-brand-400/15"
               aria-label="Diminuir"
             >
               −
             </button>
-            <span className="w-8 text-center font-semibold">{quantity}</span>
+            <span className="w-10 text-center font-semibold">{quantity}</span>
             <button
               onClick={() => setQuantity((q) => q + 1)}
-              className="flex h-11 w-10 items-center justify-center text-lg text-neutral-400 transition-colors hover:bg-brand-400/15"
+              className="flex h-11 w-12 items-center justify-center text-lg text-neutral-400 transition-colors hover:bg-brand-400/15"
               aria-label="Aumentar"
             >
               +
             </button>
           </div>
-          <Button variant="brand" size="lg" fullWidth onClick={handleAdd} disabled={missingRequired} className="normal-case">
+          <Button variant="brand" size="lg" fullWidth onClick={handleAdd} disabled={missingRequired} className="min-h-11 normal-case">
             Adicionar · {formatCurrency(unitTotal * quantity)}
           </Button>
         </div>

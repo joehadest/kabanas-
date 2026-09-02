@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { FieldGroup, Input } from '@/components/ui/input';
@@ -91,19 +92,22 @@ export function CategoryEditor({ storeId, category, sortOrder, onClose, onSaved,
         subtitle="Cardápio"
         description="Organize os produtos em seções visíveis para o cliente."
         size="md"
+        headerActions={
+          category ? (
+            <button
+              type="button"
+              title="Excluir categoria"
+              aria-label="Excluir categoria"
+              onClick={() => setConfirmDelete(true)}
+              disabled={deleting}
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-40 sm:h-9 sm:w-9"
+            >
+              <Trash2 size={16} />
+            </button>
+          ) : undefined
+        }
         footer={
           <ModalFooter>
-            {category && (
-              <Button
-                variant="danger"
-                size="md"
-                onClick={() => setConfirmDelete(true)}
-                disabled={deleting}
-                className="sm:mr-auto normal-case"
-              >
-                Excluir categoria
-              </Button>
-            )}
             <Button variant="secondary" size="md" onClick={onClose} className="normal-case">
               Cancelar
             </Button>

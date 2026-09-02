@@ -258,14 +258,21 @@ export function InventoryManager({ storeId, operatorId, items: initialItems }: P
           title={editing ? 'Editar item' : 'Novo item'}
           subtitle="Inventário"
           size="lg"
+          headerActions={
+            editing ? (
+              <button
+                type="button"
+                title="Excluir item"
+                aria-label="Excluir item"
+                onClick={() => setPendingDelete(editing)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl text-red-400 transition-colors hover:bg-red-500/10 sm:h-9 sm:w-9"
+              >
+                <Trash2 size={16} />
+              </button>
+            ) : undefined
+          }
           footer={
             <ModalFooter>
-              {editing && (
-                <Button variant="danger" size="md" onClick={() => setPendingDelete(editing)} className="normal-case sm:mr-auto">
-                  <Trash2 size={16} />
-                  Excluir
-                </Button>
-              )}
               <Button variant="secondary" size="md" onClick={() => setEditing(undefined)} className="normal-case">
                 Cancelar
               </Button>
