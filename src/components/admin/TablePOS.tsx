@@ -1335,8 +1335,10 @@ export function TablePOS({
 
               <aside
                 className={clsx(
-                  'flex h-full min-h-0 max-h-full flex-col overflow-hidden',
-                  isCompact && 'min-h-0 flex-1',
+                  'flex h-full min-h-0 max-h-full flex-col',
+                  isCompact
+                    ? 'min-h-0 flex-1 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]'
+                    : 'overflow-hidden',
                   isCompact && comandaTab === 'add' && 'hidden',
                   !isCompact && 'border-l border-border pl-4 md:pl-5'
                 )}
