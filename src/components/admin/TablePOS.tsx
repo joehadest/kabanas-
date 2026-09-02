@@ -1335,10 +1335,8 @@ export function TablePOS({
 
               <aside
                 className={clsx(
-                  'flex h-full min-h-0 max-h-full flex-col',
-                  isCompact
-                    ? 'min-h-0 flex-1 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]'
-                    : 'overflow-hidden',
+                  'flex h-full min-h-0 max-h-full flex-col overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]',
+                  isCompact && 'min-h-0 flex-1',
                   isCompact && comandaTab === 'add' && 'hidden',
                   !isCompact && 'border-l border-border pl-4 md:pl-5'
                 )}
@@ -1350,16 +1348,16 @@ export function TablePOS({
                   onOpenChange={setTabDetailsOpen}
                   className={clsx('mb-3 shrink-0', isCompact && comandaTab === 'pay' && 'hidden')}
                 >
-                  <div className="space-y-3 rounded-2xl border border-border bg-surface-elevated p-3 sm:p-4">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <FieldGroup label="Cliente">
+                  <div className="space-y-4 rounded-2xl border border-border bg-surface-elevated p-3 sm:p-4">
+                    <div className={clsx('grid gap-x-3 gap-y-4', isCompact ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2')}>
+                      <FieldGroup label="Cliente" className="col-span-2">
                         <Input
                           value={customerName}
                           onChange={(e) => setCustomerName(e.target.value)}
                           placeholder="Nome opcional"
                         />
                       </FieldGroup>
-                      <FieldGroup label="Garçom">
+                      <FieldGroup label="Garçom" className="col-span-2">
                         <Input
                           value={waiterName}
                           onChange={(e) => setWaiterName(e.target.value)}
@@ -1374,7 +1372,7 @@ export function TablePOS({
                           placeholder="1"
                         />
                       </FieldGroup>
-                      <FieldGroup label="Taxa de serviço (%)">
+                      <FieldGroup label="Taxa (%)">
                         <Input
                           value={serviceRate}
                           onChange={(e) => setServiceRate(e.target.value)}
@@ -1382,7 +1380,7 @@ export function TablePOS({
                           placeholder="10"
                         />
                       </FieldGroup>
-                      <FieldGroup label="Couvert por pessoa (R$)">
+                      <FieldGroup label="Couvert (R$)">
                         <Input
                           value={coverCharge}
                           onChange={(e) => setCoverCharge(e.target.value)}
@@ -1404,7 +1402,7 @@ export function TablePOS({
                       size="md"
                       onClick={saveTabDetails}
                       disabled={savingTabDetails}
-                      className="w-full normal-case sm:w-auto"
+                      className="w-full normal-case"
                     >
                       {savingTabDetails ? 'Salvando...' : 'Salvar dados da mesa'}
                     </Button>
