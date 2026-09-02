@@ -27,6 +27,7 @@ import {
 import { FieldGroup, Input, Select, Textarea } from '@/components/ui/input';
 import { FloatingToast, useFloatingToast } from '@/components/ui/floating-toast';
 import { Modal, ModalAlert, ModalFooter } from '@/components/ui/modal';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Alert, EmptyState, PageContainer, PageHeader, Panel, StatCard } from '@/components/ui/page-layout';
 
 const DENOMINATIONS = [200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.25, 0.1, 0.05];
@@ -285,6 +286,9 @@ export function CashRegisterNormal({ storeId, operatorId, sessions: initialSessi
   const [cancelModal, setCancelModal] = useState(false);
   const [manageSession, setManageSession] = useState<Session | null>(null);
   const [removingLinkId, setRemovingLinkId] = useState<string | null>(null);
+  const [pendingLinkedRemoval, setPendingLinkedRemoval] = useState<
+    { type: 'payment'; sessionId: string; paymentId: string } | { type: 'sale'; sessionId: string; saleId: string } | null
+  >(null);
 
   const active = sessions.find((session) => session.status === 'open' && session.operator_id === operatorId);
   const otherOpenSession = sessions.find(
@@ -498,7 +502,6 @@ export function CashRegisterNormal({ storeId, operatorId, sessions: initialSessi
   };
 
   const removeLinkedTabPayment = async (sessionId: string, paymentId: string) => {
-    if (!confirm('Remover este pagamento de comanda?')) return;
     setRemovingLinkId(paymentId);
     const { error } = await createClient().from('tab_payments').delete().eq('id', paymentId);
     setRemovingLinkId(null);
@@ -514,7 +517,6 @@ export function CashRegisterNormal({ storeId, operatorId, sessions: initialSessi
   };
 
   const removeLinkedSale = async (sessionId: string, saleId: string) => {
-    if (!confirm('Remover esta venda? Use apenas para corrigir testes.')) return;
     const session = sessions.find((item) => item.id === sessionId);
     const sale = session?.sales?.find((item) => item.id === saleId);
     const relatedPayments = session && sale ? closedTabPaymentsForSale(session, sale.notes) : [];
@@ -594,7 +596,7 @@ export function CashRegisterNormal({ storeId, operatorId, sessions: initialSessi
           <button
             type="button"
             disabled={removingLinkId === item.id}
-            onClick={() => removeLinkedTabPayment(sessionId, item.id)}
+            onClick={() => setPendingLinkedRemoval({ type: 'payment', sessionId, paymentId: item.id })}
             className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 px-2 py-1 text-[10px] font-bold text-red-400 hover:bg-red-500/10 disabled:opacity-50"
           >
             <Trash2 size={12} />
@@ -605,7 +607,7 @@ export function CashRegisterNormal({ storeId, operatorId, sessions: initialSessi
           <button
             type="button"
             disabled={removingLinkId === item.id}
-            onClick={() => removeLinkedSale(sessionId, item.id)}
+            onClick={() => setPendingLinkedRemoval({ type: 'sale', sessionId, saleId: item.id })}
             className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 px-2 py-1 text-[10px] font-bold text-red-400 hover:bg-red-500/10 disabled:opacity-50"
           >
             <Trash2 size={12} />
@@ -1165,6 +1167,27 @@ export function CashRegisterNormal({ storeId, operatorId, sessions: initialSessi
           </div>
         </Modal>
       )}
+
+      <ConfirmDialog
+        open={pendingLinkedRemoval !== null}
+        title={pendingLinkedRemoval?.type === 'sale' ? 'Remover venda' : 'Remover pagamento'}
+        description={
+          pendingLinkedRemoval?.type === 'sale'
+            ? 'Remover esta venda? Use apenas para corrigir testes.'
+            : 'Remover este pagamento de comanda?'
+        }
+        confirmLabel="Remover"
+        destructive
+        onCancel={() => setPendingLinkedRemoval(null)}
+        onConfirm={() => {
+          if (pendingLinkedRemoval?.type === 'payment') {
+            void removeLinkedTabPayment(pendingLinkedRemoval.sessionId, pendingLinkedRemoval.paymentId);
+          } else if (pendingLinkedRemoval?.type === 'sale') {
+            void removeLinkedSale(pendingLinkedRemoval.sessionId, pendingLinkedRemoval.saleId);
+          }
+          setPendingLinkedRemoval(null);
+        }}
+      />
     </PageContainer>
   );
 }

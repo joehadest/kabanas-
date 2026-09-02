@@ -18,6 +18,7 @@ import { FieldGroup, Input, Select } from '@/components/ui/input';
 import { FloatingToast, useFloatingToast } from '@/components/ui/floating-toast';
 import { Modal, ModalFooter, ModalSection } from '@/components/ui/modal';
 import { Alert, PageContainer, PageHeader } from '@/components/ui/page-layout';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { calculateTabFinancials, paymentsWithFees } from '@/lib/sales/tab-financials';
 import {
   calculateCashChange,
@@ -240,6 +241,13 @@ export function TablePOS({
   const [removingSaleId, setRemovingSaleId] = useState<string | null>(null);
   const [voidingComanda, setVoidingComanda] = useState(false);
   const [moreActionsOpen, setMoreActionsOpen] = useState(false);
+  const [pendingConfirm, setPendingConfirm] = useState<
+    | { type: 'cancelItem'; itemId: string; itemName: string }
+    | { type: 'removeTabPayment'; paymentId: string }
+    | { type: 'removeSale'; saleId: string }
+    | { type: 'voidComanda'; hasContent: boolean }
+    | null
+  >(null);
 
   const normalizedSearch = search.trim().toLowerCase();
 
@@ -429,8 +437,8 @@ export function TablePOS({
     }
   };
 
-  const cancelItem = async (itemId: string, itemName: string) => {
-    if (!selected || !confirm(`Remover "${itemName}" da comanda?`)) return;
+  const cancelItem = async (itemId: string) => {
+    if (!selected) return;
     const { error } = await createClient()
       .from('tab_items')
       .update({
@@ -496,7 +504,7 @@ export function TablePOS({
   };
 
   const removeTabPayment = async (tabPaymentId: string) => {
-    if (!tab || !selected || !confirm('Remover este pagamento da comanda?')) return;
+    if (!tab || !selected) return;
     const { error } = await createClient().from('tab_payments').delete().eq('id', tabPaymentId);
     if (error) {
       showToast('Não foi possível remover o pagamento.', 'error');
@@ -517,7 +525,6 @@ export function TablePOS({
   };
 
   const removeSale = async (saleId: string) => {
-    if (!confirm('Remover esta venda do histórico? Use apenas para corrigir testes ou lançamentos errados.')) return;
     const sale = recentSales.find((item) => item.id === saleId);
     setRemovingSaleId(saleId);
     const supabase = createClient();
@@ -545,16 +552,6 @@ export function TablePOS({
 
   const voidOpenComanda = async () => {
     if (!tab || !selected) return;
-    const hasContent = items.length > 0 || (tab.tab_payments?.length ?? 0) > 0;
-    if (
-      !confirm(
-        hasContent
-          ? 'Cancelar esta comanda? Todos os itens e pagamentos serão removidos e a mesa ficará livre.'
-          : 'Cancelar esta comanda vazia e liberar a mesa?'
-      )
-    ) {
-      return;
-    }
     setVoidingComanda(true);
     const tableId = selected.id;
     const { error } = await createClient().from('tabs').delete().eq('id', tab.id);
@@ -965,7 +962,11 @@ export function TablePOS({
       </div>
 
       <div className="mt-8">
-        <RestaurantSalesHistory sales={recentSales} onRemoveSale={removeSale} removingSaleId={removingSaleId} />
+        <RestaurantSalesHistory
+          sales={recentSales}
+          onRemoveSale={(saleId) => setPendingConfirm({ type: 'removeSale', saleId })}
+          removingSaleId={removingSaleId}
+        />
       </div>
 
       <TableManager
@@ -1258,7 +1259,12 @@ export function TablePOS({
                 <Button
                   variant="outline"
                   size="md"
-                  onClick={voidOpenComanda}
+                  onClick={() =>
+                    setPendingConfirm({
+                      type: 'voidComanda',
+                      hasContent: items.length > 0 || (tab.tab_payments?.length ?? 0) > 0,
+                    })
+                  }
                   disabled={voidingComanda}
                   className="normal-case border-red-500/30 text-red-400 hover:border-red-500/50 hover:bg-red-500/10"
                 >
@@ -1463,7 +1469,9 @@ export function TablePOS({
                           </p>
                           <button
                             type="button"
-                            onClick={() => cancelItem(item.id, item.product_name)}
+                            onClick={() =>
+                              setPendingConfirm({ type: 'cancelItem', itemId: item.id, itemName: item.product_name })
+                            }
                             className="mt-1.5 text-xs font-bold text-red-400 hover:underline 2xl:text-sm"
                           >
                             Cancelar
@@ -1741,7 +1749,7 @@ export function TablePOS({
                           </div>
                           <button
                             type="button"
-                            onClick={() => removeTabPayment(payment.id)}
+                            onClick={() => setPendingConfirm({ type: 'removeTabPayment', paymentId: payment.id })}
                             aria-label="Remover pagamento"
                             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-red-500/30 text-red-400 transition-colors hover:bg-red-500/10"
                           >
@@ -1887,7 +1895,10 @@ export function TablePOS({
                 size="md"
                 onClick={() => {
                   setMoreActionsOpen(false);
-                  void voidOpenComanda();
+                  setPendingConfirm({
+                    type: 'voidComanda',
+                    hasContent: items.length > 0 || (tab.tab_payments?.length ?? 0) > 0,
+                  });
                 }}
                 disabled={voidingComanda}
                 className="w-full normal-case justify-start border-red-500/30 text-red-400 hover:border-red-500/50 hover:bg-red-500/10"
@@ -1899,6 +1910,55 @@ export function TablePOS({
           </div>
         </Modal>
       )}
+
+      <ConfirmDialog
+        open={pendingConfirm !== null}
+        title={
+          pendingConfirm?.type === 'cancelItem'
+            ? 'Remover item'
+            : pendingConfirm?.type === 'removeTabPayment'
+              ? 'Remover pagamento'
+              : pendingConfirm?.type === 'removeSale'
+                ? 'Remover venda'
+                : 'Cancelar comanda'
+        }
+        description={
+          pendingConfirm?.type === 'cancelItem'
+            ? `Remover "${pendingConfirm.itemName}" da comanda?`
+            : pendingConfirm?.type === 'removeTabPayment'
+              ? 'Remover este pagamento da comanda?'
+              : pendingConfirm?.type === 'removeSale'
+                ? 'Remover esta venda do histórico? Use apenas para corrigir testes ou lançamentos errados.'
+                : pendingConfirm?.type === 'voidComanda'
+                  ? pendingConfirm.hasContent
+                    ? 'Todos os itens e pagamentos serão removidos e a mesa ficará livre.'
+                    : 'Cancelar esta comanda vazia e liberar a mesa?'
+                  : ''
+        }
+        confirmLabel="Confirmar"
+        destructive
+        confirming={
+          pendingConfirm?.type === 'removeSale'
+            ? removingSaleId === pendingConfirm.saleId
+            : pendingConfirm?.type === 'voidComanda'
+              ? voidingComanda
+              : false
+        }
+        onCancel={() => setPendingConfirm(null)}
+        onConfirm={() => {
+          if (!pendingConfirm) return;
+          if (pendingConfirm.type === 'cancelItem') {
+            void cancelItem(pendingConfirm.itemId);
+          } else if (pendingConfirm.type === 'removeTabPayment') {
+            void removeTabPayment(pendingConfirm.paymentId);
+          } else if (pendingConfirm.type === 'removeSale') {
+            void removeSale(pendingConfirm.saleId);
+          } else if (pendingConfirm.type === 'voidComanda') {
+            void voidOpenComanda();
+          }
+          setPendingConfirm(null);
+        }}
+      />
 
       <FloatingToast toast={toast} onClose={clearToast} />
     </PageContainer>

@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/collapsible-list';
 import { FieldGroup, Input, Select } from '@/components/ui/input';
 import { Modal, ModalAlert, ModalFooter, ModalSection } from '@/components/ui/modal';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface Area {
   id: string;
@@ -47,6 +48,7 @@ export function TableManager({ storeId, areas: initialAreas, tables: initialTabl
   const [search, setSearch] = useState('');
   const [showAllTables, setShowAllTables] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Table | null>(null);
 
   const normalizedSearch = search.trim().toLowerCase();
 
@@ -134,7 +136,6 @@ export function TableManager({ storeId, areas: initialAreas, tables: initialTabl
       setMessage('Feche a comanda antes de excluir esta mesa.');
       return;
     }
-    if (!confirm(`Excluir ${table.name}?`)) return;
     const { error } = await createClient().from('dining_tables').delete().eq('id', table.id);
     if (error) {
       setMessage('Não foi possível excluir a mesa.');
@@ -270,7 +271,13 @@ export function TableManager({ storeId, areas: initialAreas, tables: initialTabl
                   <button
                     type="button"
                     title="Excluir mesa"
-                    onClick={() => remove(table)}
+                    onClick={() => {
+                      if (table.tabs.some((tab) => ['open', 'payment', 'attention'].includes(tab.status))) {
+                        setMessage('Feche a comanda antes de excluir esta mesa.');
+                        return;
+                      }
+                      setPendingDelete(table);
+                    }}
                     className="flex h-8 w-8 items-center justify-center rounded-lg text-red-400 hover:bg-red-500/10"
                   >
                     <Trash2 size={15} />
@@ -295,6 +302,19 @@ export function TableManager({ storeId, areas: initialAreas, tables: initialTabl
 
         {message && <ModalAlert variant="error">{message}</ModalAlert>}
       </div>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Excluir mesa"
+        description={pendingDelete ? `Excluir ${pendingDelete.name}?` : ''}
+        confirmLabel="Excluir"
+        destructive
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          if (pendingDelete) void remove(pendingDelete);
+          setPendingDelete(null);
+        }}
+      />
     </Modal>
   );
 }

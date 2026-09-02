@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/collapsible-list';
 import { FieldGroup, Input, Select } from '@/components/ui/input';
 import { Modal, ModalAlert, ModalFooter, ModalSection } from '@/components/ui/modal';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { PageContainer, PageHeader } from '@/components/ui/page-layout';
 
 export interface ManagedProduct {
@@ -161,6 +162,7 @@ export function ProductProfitManager({ storeId, products: initialProducts, categ
   });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<ManagedProduct | null>(null);
 
   const normalizedSearch = search.trim().toLowerCase();
 
@@ -209,7 +211,7 @@ export function ProductProfitManager({ storeId, products: initialProducts, categ
             product={product}
             paymentFeeRate={paymentFeeRate}
             onEdit={() => openEditor(product)}
-            onRemove={() => remove(product)}
+            onRemove={() => setPendingDelete(product)}
           />
         ))}
         <ShowMoreToggle hiddenCount={hiddenCount} showingAll={showAll} onToggle={() => toggleShowAll(groupKey)} />
@@ -303,12 +305,6 @@ export function ProductProfitManager({ storeId, products: initialProducts, categ
   };
 
   const remove = async (product: ManagedProduct) => {
-    if (
-      !confirm(
-        `Excluir "${product.name}"? Produtos usados em vendas antigas permanecerão no histórico, mas não poderão mais ser selecionados.`
-      )
-    )
-      return;
     const { error: deleteError } = await createClient().from('products').delete().eq('id', product.id);
     if (deleteError) {
       setError(deleteError.message);
@@ -417,7 +413,7 @@ export function ProductProfitManager({ storeId, products: initialProducts, categ
                 type="button"
                 title="Excluir produto"
                 aria-label="Excluir produto"
-                onClick={() => remove(editing)}
+                onClick={() => setPendingDelete(editing)}
                 className="flex h-10 w-10 items-center justify-center rounded-xl text-red-400 transition-colors hover:bg-red-500/10 sm:h-9 sm:w-9"
               >
                 <Trash2 size={16} />
@@ -511,6 +507,23 @@ export function ProductProfitManager({ storeId, products: initialProducts, categ
           {error && <ModalAlert variant="error">{error}</ModalAlert>}
         </Modal>
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Excluir produto"
+        description={
+          pendingDelete
+            ? `Excluir "${pendingDelete.name}"? Produtos usados em vendas antigas permanecerão no histórico, mas não poderão mais ser selecionados.`
+            : ''
+        }
+        confirmLabel="Excluir"
+        destructive
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          if (pendingDelete) void remove(pendingDelete);
+          setPendingDelete(null);
+        }}
+      />
     </PageContainer>
   );
 }
