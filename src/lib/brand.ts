@@ -5,8 +5,14 @@ export const BRAND = {
   tagline: 'Petisco, cerveja e boas histórias',
   heroTagline: 'O melhor chopp da cidade',
   deliveryTagline: 'Chopp gelado, petiscos na brasa e delivery quentinho.',
-  logoPath: '/brand/logo-kabanas.jpg',
-  logoMarkPath: '/brand/logo-mark.svg',
+  logoBadgePath: '/brand/logo-badge.svg',
+  logoBadgePng: {
+    16: '/brand/logo-badge-16.png',
+    32: '/brand/logo-badge-32.png',
+    180: '/brand/logo-badge-180.png',
+    192: '/brand/logo-badge-192.png',
+    512: '/brand/logo-badge-512.png',
+  },
   bannerPath: '/brand/banner-promo.jpg',
   colors: {
     charcoal: '#0a0a0a',

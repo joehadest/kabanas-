@@ -9,7 +9,9 @@ import {
   ArrowLeft,
   Banknote,
   LockKeyhole,
+  Minus,
   MinusCircle,
+  Plus,
   PlusCircle,
   Receipt,
   RefreshCw,
@@ -197,6 +199,11 @@ function CashNoteCounter({
   onSubmit: (event: FormEvent) => void;
   submitting?: boolean;
 }) {
+  const adjustCount = (denomination: number, delta: number) => {
+    const current = Number(counts[String(denomination)]) || 0;
+    onCountChange(denomination, String(Math.max(0, current + delta)));
+  };
+
   return (
     <form id="close-cash-form" onSubmit={onSubmit} className="flex flex-col">
       <div className="max-h-[min(52vh,560px)] space-y-2 overflow-y-auto overscroll-y-contain pr-1">
@@ -207,7 +214,7 @@ function CashNoteCounter({
           return (
             <div
               key={denomination}
-              className="grid grid-cols-[minmax(0,1fr)_4.5rem_minmax(0,1fr)] items-center gap-3 rounded-xl border border-brand-400/30 bg-surface-elevated px-3 py-2.5 sm:grid-cols-[7rem_5rem_1fr]"
+              className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-xl border border-brand-400/30 bg-surface-elevated px-3 py-2.5 sm:grid-cols-[7rem_auto_1fr] sm:gap-3"
             >
               <div>
                 <p className="text-sm font-bold text-ink">{denominationLabel(denomination)}</p>
@@ -215,14 +222,33 @@ function CashNoteCounter({
                   {denomination >= 2 ? 'Cédula' : 'Moeda'}
                 </p>
               </div>
-              <Input
-                value={counts[String(denomination)] || ''}
-                onChange={(event) => onCountChange(denomination, event.target.value.replace(/\D/g, ''))}
-                inputMode="numeric"
-                placeholder="0"
-                aria-label={`Quantidade de ${denominationLabel(denomination)}`}
-                className="h-10 px-2 text-center font-semibold"
-              />
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => adjustCount(denomination, -1)}
+                  disabled={qty <= 0}
+                  aria-label={`Diminuir 1 ${denominationLabel(denomination)}`}
+                  className="flex h-10 w-9 shrink-0 touch-manipulation items-center justify-center rounded-lg border border-border bg-neutral-900 text-neutral-300 transition-colors hover:border-brand-400 hover:text-brand-300 disabled:pointer-events-none disabled:opacity-40"
+                >
+                  <Minus size={15} />
+                </button>
+                <Input
+                  value={counts[String(denomination)] || ''}
+                  onChange={(event) => onCountChange(denomination, event.target.value.replace(/\D/g, ''))}
+                  inputMode="numeric"
+                  placeholder="0"
+                  aria-label={`Quantidade de ${denominationLabel(denomination)}`}
+                  className="h-10 w-12 shrink-0 px-1 text-center font-semibold sm:w-14"
+                />
+                <button
+                  type="button"
+                  onClick={() => adjustCount(denomination, 1)}
+                  aria-label={`Adicionar 1 ${denominationLabel(denomination)}`}
+                  className="flex h-10 w-9 shrink-0 touch-manipulation items-center justify-center rounded-lg border border-border bg-neutral-900 text-neutral-300 transition-colors hover:border-brand-400 hover:text-brand-300"
+                >
+                  <Plus size={15} />
+                </button>
+              </div>
               <div className="text-right">
                 <p className="text-[10px] text-neutral-500">
                   {qty} × {formatCurrency(denomination)}

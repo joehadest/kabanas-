@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "npm run typecheck",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "generate:logo-pngs": "node scripts/generate-logo-pngs.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

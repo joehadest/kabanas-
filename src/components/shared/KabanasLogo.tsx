@@ -71,7 +71,7 @@ export function KabanasLogo({
         role="img"
       >
         <Image
-          src={BRAND.logoMarkPath}
+          src={BRAND.logoBadgePath}
           alt=""
           fill
           sizes={IMAGE_SIZES[size]}

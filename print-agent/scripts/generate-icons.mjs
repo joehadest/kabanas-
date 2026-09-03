@@ -6,8 +6,19 @@ import toIco from 'to-ico';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
-const svgPath = path.join(root, 'ui', 'assets', 'logo.svg');
-const svg = fs.readFileSync(svgPath);
+const repoRoot = path.resolve(root, '..');
+const brandSvg = path.join(repoRoot, 'public', 'brand', 'logo-badge.svg');
+const localSvg = path.join(root, 'ui', 'assets', 'logo.svg');
+
+if (!fs.existsSync(brandSvg)) {
+  console.error('Logo oficial não encontrada:', brandSvg);
+  process.exit(1);
+}
+
+const svg = fs.readFileSync(brandSvg);
+fs.mkdirSync(path.dirname(localSvg), { recursive: true });
+fs.writeFileSync(localSvg, svg);
+console.log('Sincronizado:', path.relative(root, localSvg));
 
 const targets = [
   { file: 'build/icon.png', size: 256 },

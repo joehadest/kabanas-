@@ -233,6 +233,22 @@ export function KitchenDisplay({ storeId, items: initialItems }: { storeId: stri
     };
   }, [fetchItems]);
 
+  // Além do polling (rede de segurança), escuta em tempo real qualquer
+  // mudança em tab_items — cancelar item, fechar comanda ou excluir mesa
+  // refletem na hora aqui, sem esperar o próximo ciclo de atualização.
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel('kds-tab-items')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tab_items' }, () => {
+        void fetchItems();
+      })
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [fetchItems]);
+
   const changeStatus = async (id: string, status: Item['status']) => {
     const { error } = await createClient().from('tab_items').update({ status }).eq('id', id);
     if (!error) {

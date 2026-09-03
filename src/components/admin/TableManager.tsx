@@ -136,7 +136,19 @@ export function TableManager({ storeId, areas: initialAreas, tables: initialTabl
       setMessage('Feche a comanda antes de excluir esta mesa.');
       return;
     }
-    const { error } = await createClient().from('dining_tables').delete().eq('id', table.id);
+    const supabase = createClient();
+    // Excluir a mesa não apaga comandas/itens antigos (FK vira null), mas
+    // qualquer pedido ainda ativo na cozinha precisa sumir de lá também —
+    // senão o KDS continua mostrando um pedido de uma mesa que não existe mais.
+    const tabIds = table.tabs.map((tab) => tab.id);
+    if (tabIds.length > 0) {
+      await supabase
+        .from('tab_items')
+        .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
+        .in('tab_id', tabIds)
+        .in('status', ['new', 'preparing', 'ready']);
+    }
+    const { error } = await supabase.from('dining_tables').delete().eq('id', table.id);
     if (error) {
       setMessage('Não foi possível excluir a mesa.');
       return;

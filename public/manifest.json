@@ -14,22 +14,22 @@
   "dir": "ltr",
   "categories": ["food", "shopping"],
   "icons": [
-    { "src": "/brand/logo-mark.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "/brand/logo-kabanas.jpg", "sizes": "512x512", "type": "image/jpeg", "purpose": "any" },
-    { "src": "/brand/logo-kabanas.jpg", "sizes": "512x512", "type": "image/jpeg", "purpose": "maskable" }
+    { "src": "/brand/logo-badge-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/brand/logo-badge-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/brand/logo-badge-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
     {
       "name": "Meus Pedidos",
       "short_name": "Pedidos",
       "url": "/pedidos",
-      "icons": [{ "src": "/brand/logo-mark.svg", "sizes": "any" }]
+      "icons": [{ "src": "/brand/logo-badge-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Carrinho",
       "short_name": "Carrinho",
       "url": "/?open=cart",
-      "icons": [{ "src": "/brand/logo-mark.svg", "sizes": "any" }]
+      "icons": [{ "src": "/brand/logo-badge-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }
