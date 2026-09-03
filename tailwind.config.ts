@@ -89,6 +89,10 @@ const config: Config = {
           '0%': { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' },
         },
+        'ken-slow': {
+          '0%': { transform: 'scale(1) translate3d(0, 0, 0)' },
+          '100%': { transform: 'scale(1.06) translate3d(0, -1.5%, 0)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.25s ease-out both',
@@ -99,6 +103,7 @@ const config: Config = {
         'bounce-in': 'bounce-in 0.55s cubic-bezier(0.34,1.56,0.64,1) both',
         pop: 'pop 0.35s ease-in-out',
         shimmer: 'shimmer 2s linear infinite',
+        'ken-slow': 'ken-slow 18s ease-in-out infinite alternate',
       },
     },
   },

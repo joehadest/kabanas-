@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import clsx from 'clsx';
 import { LogOut } from 'lucide-react';
+import { LayoutGrid } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { KabanasLogo } from '@/components/shared/KabanasLogo';
 import { IconOverview, IconOrders, IconMenuBook, IconStock, IconClock, IconSettings } from './AdminDockIcons';
@@ -16,6 +17,7 @@ const NAV_LINKS = [
   { href: '/admin/pdv', label: 'Vendas e mesas', shortLabel: 'Vendas', icon: IconOrders },
   { href: '/admin/caixa', label: 'Caixa', shortLabel: 'Caixa', icon: IconOverview },
   { href: '/admin/cardapio', label: 'Cardápio', shortLabel: 'Menu', icon: IconMenuBook },
+  { href: '/admin/mesas', label: 'Mesas', shortLabel: 'Mesas', icon: LayoutGrid },
   { href: '/admin/precificacao', label: 'Precificação', shortLabel: 'Lucro', icon: IconClock },
   { href: '/admin/inventario', label: 'Inventário', shortLabel: 'Estoque', icon: IconStock },
   { href: '/admin/despesas', label: 'Despesas', shortLabel: 'Despesas', icon: IconStock },

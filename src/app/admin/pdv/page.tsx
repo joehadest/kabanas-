@@ -7,10 +7,10 @@ export const revalidate = 0;
 const OPEN_TAB_STATUSES = new Set(['open', 'payment', 'attention']);
 
 const TABLES_SELECT_BASE =
-  'id,name,seats,area_id,dining_areas(name),tabs(id,status,identifier,customer_name,waiter_name,guest_count,service_rate,cover_charge,discount_amount,tab_items(id,product_name,quantity,unit_price,unit_cost,tax_rate,notes,status),tab_payments(id,amount,payment_method_id,payment_methods(name,fee_rate)))';
+  'id,name,seats,area_id,is_active,sort_order,dining_areas(name),tabs(id,status,identifier,customer_name,waiter_name,guest_count,service_rate,cover_charge,discount_amount,tab_items(id,product_name,quantity,unit_price,unit_cost,tax_rate,notes,status),tab_payments(id,amount,payment_method_id,payment_methods(name,fee_rate)))';
 
 const TABLES_SELECT_WITH_CHANGE =
-  'id,name,seats,area_id,dining_areas(name),tabs(id,status,identifier,customer_name,waiter_name,guest_count,service_rate,cover_charge,discount_amount,tab_items(id,product_name,quantity,unit_price,unit_cost,tax_rate,notes,status),tab_payments(id,amount,amount_received,change_amount,payment_method_id,payment_methods(name,fee_rate)))';
+  'id,name,seats,area_id,is_active,sort_order,dining_areas(name),tabs(id,status,identifier,customer_name,waiter_name,guest_count,service_rate,cover_charge,discount_amount,tab_items(id,product_name,quantity,unit_price,unit_cost,tax_rate,notes,status),tab_payments(id,amount,amount_received,change_amount,payment_method_id,payment_methods(name,fee_rate)))';
 
 function migrationHint(message: string): string | null {
   const lower = message.toLowerCase();
@@ -37,6 +37,7 @@ async function fetchDiningTables(supabase: Awaited<ReturnType<typeof createClien
     .from('dining_tables')
     .select(TABLES_SELECT_WITH_CHANGE)
     .eq('store_id', storeId)
+    .order('sort_order')
     .order('name');
 
   if (!withChange.error) {
@@ -47,7 +48,7 @@ async function fetchDiningTables(supabase: Awaited<ReturnType<typeof createClien
     withChange.error.message.includes('amount_received') || withChange.error.message.includes('change_amount');
 
   if (missingChangeColumns) {
-    return supabase.from('dining_tables').select(TABLES_SELECT_BASE).eq('store_id', storeId).order('name');
+    return supabase.from('dining_tables').select(TABLES_SELECT_BASE).eq('store_id', storeId).order('sort_order').order('name');
   }
 
   return withChange;

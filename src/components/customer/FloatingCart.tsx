@@ -27,7 +27,7 @@ export function FloatingCart({ storeSettings }: Props) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-4 left-4 right-4 z-40 mx-auto flex h-14 max-w-md items-center justify-between rounded-2xl border border-brand-300/60 bg-brand-400 px-5 text-neutral-950 shadow-floating transition-all animate-bounce-in hover:bg-brand-300 hover:shadow-glow active:scale-[0.98] safe-bottom sm:bottom-6"
+        className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-4 right-4 z-40 mx-auto flex h-14 max-w-md items-center justify-between rounded-2xl border border-brand-300/60 bg-brand-400 px-5 text-neutral-950 shadow-floating transition-all animate-bounce-in hover:bg-brand-300 hover:shadow-glow active:scale-[0.98] sm:bottom-6"
       >
         <span className="flex items-center gap-3 font-bold text-sm">
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-950 text-xs text-brand-300 animate-pop">

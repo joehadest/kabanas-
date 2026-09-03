@@ -105,11 +105,8 @@ export function Modal({
   useEffect(() => {
     if (!open) return;
     document.addEventListener('keydown', handleKeyDown);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = prev;
     };
   }, [open, handleKeyDown]);
 
@@ -234,8 +231,9 @@ export function Modal({
                 className={cn(
                   'shrink-0 border-t border-border bg-neutral-950 px-4 py-3 backdrop-blur-md sm:px-5 sm:py-4',
                   'shadow-[0_-8px_24px_-8px_rgba(0,0,0,0.4)]',
-                  'pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:pb-4',
-                  footerClassName
+                  footerClassName,
+                  // Depois do footerClassName para não perder o safe-area (twMerge em py-* / pb-*)
+                  'pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:pb-4'
                 )}
               >
                 {footer}

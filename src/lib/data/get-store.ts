@@ -15,3 +15,16 @@ export const getActiveStore = cache(async (): Promise<StoreSettings | null> => {
 
   return data ?? null;
 });
+
+/**
+ * Busca uma loja pelo slug informado na URL (ex.: /cardapio/kabanas).
+ * Usado pela rota pública do cardápio do cliente — hoje sempre resolve para a
+ * mesma loja de `getActiveStore()` (app single-tenant), mas mantém a rota
+ * pronta para múltiplas lojas no futuro.
+ */
+export const getStoreBySlug = cache(async (slug: string): Promise<StoreSettings | null> => {
+  const supabase = await createClient();
+  const { data } = await supabase.from('store_settings').select('*').eq('slug', slug).single<StoreSettings>();
+
+  return data ?? null;
+});
