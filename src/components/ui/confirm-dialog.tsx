@@ -40,11 +40,8 @@ export function ConfirmDialog({
       if (event.key === 'Escape' && !confirming) onCancel();
     };
     document.addEventListener('keydown', onKeyDown);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = prev;
     };
   }, [open, confirming, onCancel]);
 

@@ -14,6 +14,8 @@ export const BRAND = {
     512: '/brand/logo-badge-512.png',
   },
   bannerPath: '/brand/banner-promo.jpg',
+  /** Banner exclusivo do cardápio presencial (mesa / QR). */
+  dineInBannerPath: '/brand/banner-dine-in.png',
   colors: {
     charcoal: '#0a0a0a',
     dark: '#1a1a1a',

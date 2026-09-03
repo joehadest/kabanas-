@@ -144,6 +144,58 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   cancelled: 'Cancelado',
 };
 
+// --- Mesas / cardápio presencial (QR Code na mesa, sem delivery) ---------
+
+export interface DiningArea {
+  id: string;
+  store_id: string;
+  name: string;
+  sort_order: number;
+}
+
+export interface DiningTable {
+  id: string;
+  store_id: string;
+  area_id: string | null;
+  name: string;
+  seats: number;
+  is_active: boolean;
+  sort_order: number;
+}
+
+export type TabItemStatus = 'new' | 'preparing' | 'ready' | 'served' | 'cancelled';
+
+export const TAB_ITEM_STATUS_FLOW: TabItemStatus[] = ['new', 'preparing', 'ready', 'served'];
+
+export const TAB_ITEM_STATUS_LABEL: Record<TabItemStatus, string> = {
+  new: 'Recebido',
+  preparing: 'Em preparo',
+  ready: 'Pronto',
+  served: 'Servido',
+  cancelled: 'Cancelado',
+};
+
+export interface TableOrderItem {
+  id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  notes: string | null;
+  status: TabItemStatus;
+}
+
+export interface TableOrder {
+  id: string;
+  store_id: string;
+  table_id: string;
+  table_name: string;
+  tab_id: string;
+  customer_name: string | null;
+  notes: string | null;
+  created_at: string;
+  items?: TableOrderItem[];
+}
+
 // Placeholder para uso com createClient<Database>() — substitua pelo tipo
 // gerado automaticamente quando o projeto Supabase estiver linkado.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

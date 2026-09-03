@@ -19,6 +19,7 @@ import { FloatingToast, useFloatingToast } from '@/components/ui/floating-toast'
 import { Modal, ModalFooter, ModalSection } from '@/components/ui/modal';
 import { Alert, PageContainer, PageHeader } from '@/components/ui/page-layout';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { useIsMobile } from '@/lib/ui/use-is-mobile';
 import { calculateTabFinancials, paymentsWithFees } from '@/lib/sales/tab-financials';
 import {
   calculateCashChange,
@@ -41,6 +42,8 @@ type Table = {
   name: string;
   seats: number;
   area_id: string | null;
+  is_active: boolean;
+  sort_order: number;
   dining_areas: { name: string }[];
   tabs: Tab[];
 };
@@ -117,17 +120,7 @@ type ComandaTab = 'add' | 'items' | 'pay';
 type SidebarTab = 'items' | 'pay';
 
 function useCompactComanda(breakpoint = 768) {
-  const [compact, setCompact] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
-    const update = () => setCompact(mq.matches);
-    update();
-    mq.addEventListener('change', update);
-    return () => mq.removeEventListener('change', update);
-  }, [breakpoint]);
-
-  return compact;
+  return useIsMobile(breakpoint);
 }
 
 const statusStyle: Record<string, string> = {
@@ -173,7 +166,8 @@ function TableCard({ table, onClick }: { table: Table; onClick: () => void }) {
       onClick={onClick}
       className={clsx(
         'min-h-[6.5rem] rounded-2xl border p-4 text-left shadow-card transition-all hover:-translate-y-0.5 hover:shadow-panel',
-        statusStyle[status]
+        statusStyle[status],
+        !table.is_active && 'opacity-50'
       )}
     >
       <div className="flex items-start justify-between gap-2">
@@ -189,7 +183,7 @@ function TableCard({ table, onClick }: { table: Table; onClick: () => void }) {
       </div>
       <p className="mt-2 font-serif text-2xl font-bold">{table.name}</p>
       <p className="mt-1 text-xs font-semibold">
-        {statusLabel[status] ?? status}
+        {table.is_active ? statusLabel[status] ?? status : 'Inativa (fora do cardápio)'}
         {itemCount > 0 ? ` · ${itemCount} item${itemCount > 1 ? 's' : ''}` : ''}
       </p>
     </button>
@@ -977,6 +971,8 @@ export function TablePOS({
           name: t.name,
           seats: t.seats,
           area_id: t.area_id,
+          is_active: t.is_active,
+          sort_order: t.sort_order,
           tabs: t.tabs.map((tab) => ({ id: tab.id, status: tab.status })),
         }))}
         open={managerOpen}
@@ -1286,7 +1282,7 @@ export function TablePOS({
             </ModalFooter>
             )
           }
-          footerClassName={isCompact ? 'px-3 py-3' : undefined}
+          footerClassName={isCompact ? 'px-3 pt-3' : undefined}
           bodyClassName={clsx(
             'flex min-h-0 flex-1 flex-col overflow-hidden',
             isCompact ? 'px-3 py-2' : 'px-3 py-3 sm:px-5 sm:py-4 xl:px-5 xl:py-4 2xl:px-6 2xl:py-4'

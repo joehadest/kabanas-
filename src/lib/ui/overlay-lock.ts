@@ -1,16 +1,26 @@
 type OverlayListener = (openCount: number) => void;
 
 let openCount = 0;
+let previousBodyOverflow = '';
 const listeners = new Set<OverlayListener>();
 
-function notify() {
-  if (typeof document !== 'undefined') {
-    if (openCount > 0) {
-      document.documentElement.dataset.overlayOpen = String(openCount);
-    } else {
-      delete document.documentElement.dataset.overlayOpen;
+function syncBodyScroll() {
+  if (typeof document === 'undefined') return;
+  if (openCount > 0) {
+    document.documentElement.dataset.overlayOpen = String(openCount);
+    if (openCount === 1) {
+      previousBodyOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
     }
+  } else {
+    delete document.documentElement.dataset.overlayOpen;
+    document.body.style.overflow = previousBodyOverflow;
+    previousBodyOverflow = '';
   }
+}
+
+function notify() {
+  syncBodyScroll();
   listeners.forEach((listener) => listener(openCount));
 }
 

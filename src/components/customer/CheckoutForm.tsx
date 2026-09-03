@@ -310,7 +310,7 @@ export function CheckoutForm({ store, addresses, userId, guestId }: Props) {
           <button
             onClick={handleSubmit}
             disabled={submitting || !addressId || showAddressForm}
-            className="h-13 w-full bg-brand-400 px-4 py-3 font-black text-neutral-950 shadow-[0_5px_0_#a16207] transition-all hover:bg-brand-300 hover:shadow-glow disabled:opacity-40 active:translate-y-0.5 active:shadow-none"
+            className="min-h-12 w-full bg-brand-400 px-4 py-3 font-black text-neutral-950 shadow-[0_5px_0_#a16207] transition-all hover:bg-brand-300 hover:shadow-glow disabled:opacity-40 active:translate-y-0.5 active:shadow-none"
           >
             {submitting ? 'Enviando pedido...' : `Fazer meu pedido · ${formatCurrency(total)}`}
           </button>

@@ -18,10 +18,22 @@ interface Props {
   categories: Category[];
   products: Product[];
   hero: ReactNode;
+  /** Substitui o carrinho flutuante padrão (delivery). Ex.: DineInCart no cardápio presencial. */
+  cart?: ReactNode;
+  /** Link no topo (ex.: "Entrar"). Passe `null` para ocultar (cardápio presencial não exige login). */
+  headerLink?: { href: string; label: string } | null;
 }
 
-export function CatalogView({ storeName, storeSettings, categories, products, hero }: Props) {
-  const [activeCategory, setActiveCategory] = useState<string | null>(categories[0]?.id ?? null);
+export function CatalogView({
+  storeName,
+  storeSettings,
+  categories,
+  products,
+  hero,
+  cart,
+  headerLink = { href: '/entrar', label: 'Entrar' },
+}: Props) {
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
@@ -58,28 +70,32 @@ export function CatalogView({ storeName, storeSettings, categories, products, he
       {hero}
 
       <div className="sticky top-0 z-30 shadow-[0_10px_20px_rgba(23,22,18,0.08)]">
-        <header className="border-b border-white/10 bg-kabanas-charcoal/95 px-4 py-3 backdrop-blur-xl safe-top">
-          <div className="mx-auto flex max-w-6xl items-center gap-3">
-            {storeSettings.logo_url ? (
-              <StoreLogo logoUrl={storeSettings.logo_url} name={storeName} size="sm" className="hidden sm:flex" />
-            ) : (
-              <KabanasLogo variant="mark" size="sm" className="hidden sm:flex" />
-            )}
+        <header className="border-b border-white/10 bg-kabanas-charcoal/95 px-4 py-2.5 backdrop-blur-xl safe-top sm:py-3">
+          <div className="mx-auto flex max-w-6xl items-center gap-2.5 sm:gap-3">
+            <div className="shrink-0">
+              {storeSettings.logo_url ? (
+                <StoreLogo logoUrl={storeSettings.logo_url} name={storeName} size="sm" />
+              ) : (
+                <KabanasLogo variant="mark" size="sm" />
+              )}
+            </div>
             <div className="relative min-w-0 flex-1">
               <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-brand-300">⌕</span>
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="O que você está com vontade de comer?"
+                placeholder="Buscar no cardápio…"
                 className="w-full min-w-0 rounded-xl border border-white/10 bg-white/10 py-2.5 pl-9 pr-3.5 text-sm text-white placeholder:text-neutral-400 outline-none transition-colors focus:border-brand-400 focus:bg-white/15"
               />
             </div>
-            <Link
-              href="/entrar"
-              className="shrink-0 rounded-xl border border-white/20 px-3 py-2.5 text-xs font-bold text-white transition-colors hover:border-brand-400 hover:bg-brand-400 hover:text-neutral-950"
-            >
-              Entrar
-            </Link>
+            {headerLink && (
+              <Link
+                href={headerLink.href}
+                className="shrink-0 rounded-xl border border-white/20 px-3 py-2.5 text-xs font-bold text-white transition-colors hover:border-brand-400 hover:bg-brand-400 hover:text-neutral-950"
+              >
+                {headerLink.label}
+              </Link>
+            )}
           </div>
         </header>
 
@@ -88,11 +104,11 @@ export function CatalogView({ storeName, storeSettings, categories, products, he
         )}
       </div>
 
-      <main className="mx-auto max-w-6xl px-4 py-7 sm:px-8">
-        <div className="mb-5 flex items-end justify-between gap-4">
+      <main className="mx-auto max-w-6xl px-4 py-5 sm:px-8 sm:py-7">
+        <div className="mb-4 flex items-end justify-between gap-4 sm:mb-5">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-300">Escolha seu momento</p>
-            <h2 className="mt-1 font-serif text-2xl font-bold leading-none text-ink">
+            <h2 className="mt-1 font-serif text-xl font-bold leading-none text-ink sm:text-2xl">
               {isSearching ? 'Resultados' : showGrouped ? 'Cardápio completo' : 'No cardápio'}
             </h2>
           </div>
@@ -104,20 +120,20 @@ export function CatalogView({ storeName, storeSettings, categories, products, he
             Nenhum produto encontrado.
           </p>
         ) : showGrouped ? (
-          <div className="space-y-8">
+          <div className="space-y-7 sm:space-y-8">
             {grouped.map(({ category, products: catProducts }) => (
               <section key={category.id}>
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <h3 className="font-serif text-xl font-bold text-ink">{category.name}</h3>
+                  <h3 className="font-serif text-lg font-bold text-ink sm:text-xl">{category.name}</h3>
                   <button
                     type="button"
                     onClick={() => setActiveCategory(category.id)}
-                    className="shrink-0 text-xs font-bold uppercase tracking-wide text-brand-300 hover:underline"
+                    className="min-h-10 shrink-0 px-1 text-xs font-bold uppercase tracking-wide text-brand-300 hover:underline"
                   >
                     Ver todos
                   </button>
                 </div>
-                <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-none snap-x snap-mandatory sm:-mx-0 sm:px-0">
+                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory -mr-4 pr-4 sm:mr-0 sm:gap-3.5 sm:pr-0">
                   {catProducts.map((product, index) => (
                     <ProductCard
                       key={product.id}
@@ -133,8 +149,8 @@ export function CatalogView({ storeName, storeSettings, categories, products, he
 
             {uncategorized.length > 0 && (
               <section>
-                <h3 className="mb-3 font-serif text-xl font-bold text-ink">Outros</h3>
-                <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-none snap-x snap-mandatory sm:-mx-0 sm:px-0">
+                <h3 className="mb-3 font-serif text-lg font-bold text-ink sm:text-xl">Outros</h3>
+                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory -mr-4 pr-4 sm:mr-0 sm:gap-3.5 sm:pr-0">
                   {uncategorized.map((product, index) => (
                     <ProductCard
                       key={product.id}
@@ -149,7 +165,7 @@ export function CatalogView({ storeName, storeSettings, categories, products, he
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-3.5 lg:grid-cols-3">
             {filtered.map((product, index) => (
               <ProductCard key={product.id} product={product} onSelect={setSelectedProduct} index={index} />
             ))}
@@ -159,7 +175,7 @@ export function CatalogView({ storeName, storeSettings, categories, products, he
 
       {selectedProduct && <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />}
 
-      <FloatingCart storeSettings={storeSettings} />
+      {cart ?? <FloatingCart storeSettings={storeSettings} />}
       <InstallPWAPrompt storeName={storeSettings.name} logoUrl={storeSettings.logo_url} />
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Ellipsis, X } from 'lucide-react';
+import { Ellipsis, X, LayoutGrid } from 'lucide-react';
 import { Dock } from '@/components/ui/dock-two';
 import { cn } from '@/lib/utils';
 import { subscribeOverlayLock } from '@/lib/ui/overlay-lock';
@@ -14,6 +14,7 @@ const ALL_LINKS = [
   { href: '/admin/pdv', label: 'Vendas e mesas', shortLabel: 'Vendas', icon: IconOrders },
   { href: '/admin/caixa', label: 'Caixa', shortLabel: 'Caixa', icon: IconOverview },
   { href: '/admin/cardapio', label: 'Cardápio', shortLabel: 'Menu', icon: IconMenuBook },
+  { href: '/admin/mesas', label: 'Mesas', shortLabel: 'Mesas', icon: LayoutGrid },
   { href: '/admin/precificacao', label: 'Precificação', shortLabel: 'Lucro', icon: IconClock },
   { href: '/admin/inventario', label: 'Inventário', shortLabel: 'Estoque', icon: IconStock },
   { href: '/admin/despesas', label: 'Despesas', shortLabel: 'Despesas', icon: IconStock },

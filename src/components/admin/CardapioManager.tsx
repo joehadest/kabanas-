@@ -260,18 +260,18 @@ export function CardapioManager({ storeId, defaultTaxRate, initialCategories, in
                     <p className="text-xs text-neutral-500">{catProducts.length} produto{catProducts.length !== 1 ? 's' : ''}</p>
                   </div>
                 </button>
-                <div className="flex shrink-0 gap-1">
+                <div className="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
                     onClick={() => setCategoryModal({ mode: 'edit', category: cat })}
-                    className="rounded-lg px-2 py-1 text-xs font-bold text-neutral-400 hover:bg-neutral-800 hover:text-brand-300"
+                    className="min-h-9 rounded-lg px-2.5 py-2 text-xs font-bold text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-brand-300"
                   >
                     Editar
                   </button>
                   <button
                     type="button"
                     onClick={() => setProductModal({ mode: 'new', categoryId: cat.id })}
-                    className="rounded-lg px-2 py-1 text-xs font-bold text-brand-300 hover:bg-brand-400/10"
+                    className="min-h-9 rounded-lg px-2.5 py-2 text-xs font-bold text-brand-300 transition-colors hover:bg-brand-400/10"
                   >
                     + Produto
                   </button>

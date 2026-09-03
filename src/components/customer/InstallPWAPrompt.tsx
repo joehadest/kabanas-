@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import clsx from 'clsx';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
+import { useCartStore } from '@/lib/store/cart-store';
 import { StoreLogo } from '@/components/shared/StoreLogo';
 
 const DISMISS_KEY = 'kabanas-install-dismissed-at';
@@ -15,6 +17,7 @@ interface Props {
 export function InstallPWAPrompt({ storeName, logoUrl }: Props) {
   const { canInstall, isInstalled, isIos, promptInstall } = useInstallPrompt();
   const [visible, setVisible] = useState(false);
+  const cartCount = useCartStore((s) => s.itemCount());
 
   useEffect(() => {
     if (isInstalled) return;
@@ -27,6 +30,7 @@ export function InstallPWAPrompt({ storeName, logoUrl }: Props) {
   if (!visible) return null;
 
   const name = storeName || 'Kabanas';
+  const raisedForCart = cartCount > 0;
 
   const dismiss = () => {
     localStorage.setItem(DISMISS_KEY, String(Date.now()));
@@ -40,24 +44,30 @@ export function InstallPWAPrompt({ storeName, logoUrl }: Props) {
   };
 
   return (
-    <div className="fixed inset-x-3 bottom-3 z-50 rounded-2xl bg-neutral-900 text-white p-4 shadow-floating safe-bottom animate-slide-up">
-      <div className="flex items-start gap-3">
+    <div
+      className={clsx(
+        'fixed inset-x-3 z-50 rounded-2xl border border-white/10 bg-kabanas-charcoal p-4 text-white shadow-floating animate-slide-up',
+        raisedForCart
+          ? 'bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:bottom-[5.75rem]'
+          : 'bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))]'
+      )}
+    >      <div className="flex items-start gap-3">
         <StoreLogo logoUrl={logoUrl} name={name} size="sm" />
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm">Instale o app {name}</p>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">Instale o app {name}</p>
           {isIos ? (
-            <p className="text-xs text-neutral-300 mt-0.5">
+            <p className="mt-0.5 text-xs text-neutral-300">
               Toque em <span className="font-medium text-brand-400">Compartilhar</span> e depois em{' '}
-              <span className="font-medium text-brand-400">"Adicionar à Tela de Início"</span>.
+              <span className="font-medium text-brand-400">&quot;Adicionar à Tela de Início&quot;</span>.
             </p>
           ) : (
-            <p className="text-xs text-neutral-300 mt-0.5">Peça mais rápido, direto da tela inicial do seu celular.</p>
+            <p className="mt-0.5 text-xs text-neutral-300">Peça mais rápido, direto da tela inicial do seu celular.</p>
           )}
         </div>
         <button
           onClick={dismiss}
           aria-label="Fechar"
-          className="text-neutral-400 text-sm px-1 hover:text-white transition-colors"
+          className="px-1 text-sm text-neutral-400 transition-colors hover:text-white"
         >
           ✕
         </button>
@@ -65,7 +75,7 @@ export function InstallPWAPrompt({ storeName, logoUrl }: Props) {
       {!isIos && (
         <button
           onClick={handleInstall}
-          className="mt-3 w-full rounded-xl bg-brand-500 text-ink py-2.5 text-sm font-bold active:scale-[0.98] hover:bg-brand-400 transition-all"
+          className="mt-3 w-full rounded-xl bg-brand-400 py-2.5 text-sm font-bold text-neutral-950 transition-all hover:bg-brand-300 active:scale-[0.98]"
         >
           Instalar aplicativo
         </button>
