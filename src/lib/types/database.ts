@@ -25,6 +25,8 @@ export interface StoreSettings {
   delivery_fee_per_km: number;
   min_order_value: number;
   is_open_override: boolean | null;
+  /** Quando false, o cardápio público (/cardapio) fica só para visualização: cliente vê os produtos, mas não pede. */
+  customer_ordering_enabled: boolean;
 }
 
 export interface Profile {

@@ -13,9 +13,11 @@ import type { Product } from '@/lib/types/database';
 interface Props {
   product: Product;
   onClose: () => void;
+  /** Quando false, o cardápio é só para visualização: some opções, quantidade e botão de adicionar. */
+  orderingEnabled?: boolean;
 }
 
-export function ProductModal({ product, onClose }: Props) {
+export function ProductModal({ product, onClose, orderingEnabled = true }: Props) {
   const addItem = useCartStore((s) => s.addItem);
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState('');
@@ -60,7 +62,7 @@ export function ProductModal({ product, onClose }: Props) {
     <Modal
       onClose={onClose}
       title={product.name}
-      subtitle="Prepare do seu jeito"
+      subtitle={orderingEnabled ? 'Prepare do seu jeito' : 'Cardápio'}
       description={product.description ?? undefined}
       size="md"
       bodyClassName="space-y-4 px-0 py-0 sm:px-0"
@@ -80,79 +82,89 @@ export function ProductModal({ product, onClose }: Props) {
         </div>
       }
       footer={
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="flex w-full items-center justify-center overflow-hidden rounded-xl border border-border bg-surface-elevated shadow-sm sm:w-auto">
-            <button
-              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-              className="flex h-11 w-12 items-center justify-center text-lg text-neutral-400 transition-colors hover:bg-brand-400/15"
-              aria-label="Diminuir"
-            >
-              −
-            </button>
-            <span className="w-10 text-center font-semibold">{quantity}</span>
-            <button
-              onClick={() => setQuantity((q) => q + 1)}
-              className="flex h-11 w-12 items-center justify-center text-lg text-neutral-400 transition-colors hover:bg-brand-400/15"
-              aria-label="Aumentar"
-            >
-              +
-            </button>
+        orderingEnabled ? (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex w-full items-center justify-center overflow-hidden rounded-xl border border-border bg-surface-elevated shadow-sm sm:w-auto">
+              <button
+                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                className="flex h-11 w-12 items-center justify-center text-lg text-neutral-400 transition-colors hover:bg-brand-400/15"
+                aria-label="Diminuir"
+              >
+                −
+              </button>
+              <span className="w-10 text-center font-semibold">{quantity}</span>
+              <button
+                onClick={() => setQuantity((q) => q + 1)}
+                className="flex h-11 w-12 items-center justify-center text-lg text-neutral-400 transition-colors hover:bg-brand-400/15"
+                aria-label="Aumentar"
+              >
+                +
+              </button>
+            </div>
+            <Button variant="brand" size="lg" fullWidth onClick={handleAdd} disabled={missingRequired} className="min-h-11 normal-case">
+              Adicionar · {formatCurrency(unitTotal * quantity)}
+            </Button>
           </div>
-          <Button variant="brand" size="lg" fullWidth onClick={handleAdd} disabled={missingRequired} className="min-h-11 normal-case">
-            Adicionar · {formatCurrency(unitTotal * quantity)}
-          </Button>
-        </div>
+        ) : undefined
       }
     >
       <div className="space-y-4 px-5 pb-5 sm:px-6">
-        {groups.map((group) => (
-          <ModalSection key={group.id} title={group.name}>
-            {group.is_required && (
-              <p className="mb-3 inline-block rounded-lg bg-brand-400/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-300">
-                Obrigatório
-              </p>
-            )}
-            <div className="space-y-2">
-              {group.options.map((opt) => {
-                const isSelected = (selected[group.id] ?? []).includes(opt.id);
-                return (
-                  <button
-                    key={opt.id}
-                    disabled={!opt.is_active}
-                    onClick={() => toggleOption(group.id, opt.id, group.max_select)}
-                    className={clsx(
-                      'option-chip',
-                      isSelected ? 'option-chip-selected' : 'option-chip-default',
-                      !opt.is_active && 'opacity-40'
-                    )}
-                  >
-                    <span className="text-neutral-200">{opt.name}</span>
-                    <span className="flex items-center gap-2">
-                      {opt.price > 0 && <span className="text-xs text-neutral-500">+ {formatCurrency(opt.price)}</span>}
-                      <span
+        {orderingEnabled ? (
+          <>
+            {groups.map((group) => (
+              <ModalSection key={group.id} title={group.name}>
+                {group.is_required && (
+                  <p className="mb-3 inline-block rounded-lg bg-brand-400/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-300">
+                    Obrigatório
+                  </p>
+                )}
+                <div className="space-y-2">
+                  {group.options.map((opt) => {
+                    const isSelected = (selected[group.id] ?? []).includes(opt.id);
+                    return (
+                      <button
+                        key={opt.id}
+                        disabled={!opt.is_active}
+                        onClick={() => toggleOption(group.id, opt.id, group.max_select)}
                         className={clsx(
-                          'flex h-5 w-5 items-center justify-center rounded-full border-2 transition-colors',
-                          isSelected ? 'border-brand-500 bg-brand-500' : 'border-neutral-600'
+                          'option-chip',
+                          isSelected ? 'option-chip-selected' : 'option-chip-default',
+                          !opt.is_active && 'opacity-40'
                         )}
                       >
-                        {isSelected && <span className="h-1.5 w-1.5 rounded-full bg-neutral-900" />}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </ModalSection>
-        ))}
+                        <span className="text-neutral-200">{opt.name}</span>
+                        <span className="flex items-center gap-2">
+                          {opt.price > 0 && <span className="text-xs text-neutral-500">+ {formatCurrency(opt.price)}</span>}
+                          <span
+                            className={clsx(
+                              'flex h-5 w-5 items-center justify-center rounded-full border-2 transition-colors',
+                              isSelected ? 'border-brand-500 bg-brand-500' : 'border-neutral-600'
+                            )}
+                          >
+                            {isSelected && <span className="h-1.5 w-1.5 rounded-full bg-neutral-900" />}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </ModalSection>
+            ))}
 
-        <ModalSection title="Observações">
-          <Textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Ex: sem cebola, ponto da carne, etc."
-            rows={2}
-          />
-        </ModalSection>
+            <ModalSection title="Observações">
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Ex: sem cebola, ponto da carne, etc."
+                rows={2}
+              />
+            </ModalSection>
+          </>
+        ) : (
+          <p className="rounded-xl border border-border bg-surface-elevated px-4 py-3 text-sm leading-relaxed text-neutral-400">
+            Este cardápio é só para consulta — peça ao garçom para incluir este item na sua conta.
+          </p>
+        )}
       </div>
     </Modal>
   );

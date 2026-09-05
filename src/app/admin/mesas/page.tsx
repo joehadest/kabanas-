@@ -40,6 +40,7 @@ export default async function MesasPage() {
         menuUrl={`${appUrl}/cardapio/${store.slug}`}
         areas={areas ?? []}
         tables={(tables ?? []).map((table) => ({ ...table, tabs: table.tabs ?? [] }))}
+        customerOrderingEnabled={store.customer_ordering_enabled !== false}
       />
     </PageContainer>
   );

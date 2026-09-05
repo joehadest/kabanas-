@@ -46,15 +46,21 @@ export default async function CardapioPage({ params }: Props) {
     areaName: Array.isArray(table.dining_areas) ? table.dining_areas[0]?.name ?? null : (table.dining_areas as { name: string } | null)?.name ?? null,
   }));
 
+  // Quando desativado no painel (Mesas → Cardápio do cliente), o cardápio
+  // fica só para consulta: o cliente vê os produtos, mas não pede — os
+  // garçons continuam lançando pedidos normalmente pelo PDV.
+  const orderingEnabled = store.customer_ordering_enabled !== false;
+
   return (
     <CatalogView
       storeName={store.name}
       storeSettings={store}
       categories={categories ?? []}
       products={products ?? []}
-      hero={<DineInHero key="hero" store={store} />}
+      orderingEnabled={orderingEnabled}
+      hero={<DineInHero key="hero" store={store} orderingEnabled={orderingEnabled} />}
       headerLink={null}
-      cart={<DineInCart key="cart" tables={dineInTables} isStoreOpen={isStoreOpenNow(store)} />}
+      cart={orderingEnabled ? <DineInCart key="cart" tables={dineInTables} isStoreOpen={isStoreOpenNow(store)} /> : null}
     />
   );
 }

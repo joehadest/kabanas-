@@ -8,6 +8,8 @@ import type { StoreSettings } from '@/lib/types/database';
 
 interface Props {
   store: StoreSettings;
+  /** Quando false, o cardápio é só para visualização: troca as mensagens de "peça" por "consulte". */
+  orderingEnabled?: boolean;
 }
 
 /**
@@ -15,11 +17,14 @@ interface Props {
  * Composição de boteco: banner full-bleed, marca em primeiro plano,
  * convite curto para pedir na mesa — sem taxas, pills ou overlays soltos.
  */
-export function DineInHero({ store }: Props) {
+export function DineInHero({ store, orderingEnabled = true }: Props) {
   const isOpen = isStoreOpenNow(store);
   const hasCustomLogo = Boolean(store.logo_url);
   const supportLine =
-    store.tagline?.trim() || 'Escolha os itens e envie o pedido direto para a cozinha.';
+    store.tagline?.trim() ||
+    (orderingEnabled
+      ? 'Escolha os itens e envie o pedido direto para a cozinha.'
+      : 'Veja os produtos e preços — peça ao garçom para fazer seu pedido.');
 
   return (
     <section className="relative overflow-hidden bg-kabanas-charcoal text-white" aria-label={`${BRAND.shortName} — cardápio da mesa`}>
@@ -89,7 +94,11 @@ export function DineInHero({ store }: Props) {
               )}
               aria-hidden
             />
-            {isOpen ? 'Aberto agora · peça à vontade' : 'Fechado no momento'}
+            {isOpen
+              ? orderingEnabled
+                ? 'Aberto agora · peça à vontade'
+                : 'Aberto agora · cardápio para consulta'
+              : 'Fechado no momento'}
           </p>
         </div>
       </div>
