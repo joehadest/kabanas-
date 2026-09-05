@@ -10,12 +10,14 @@ interface Props {
   onSelect: (product: Product) => void;
   index?: number;
   variant?: 'grid' | 'carousel';
+  /** Quando false, o cardápio é só para visualização: esconde o "+" de adicionar. */
+  orderingEnabled?: boolean;
 }
 
 const CARD_CLASS =
   'group overflow-hidden rounded-2xl border border-border bg-surface-elevated text-left shadow-card transition-all hover:-translate-y-0.5 hover:border-brand-400/40 hover:shadow-glow disabled:opacity-50';
 
-export function ProductCard({ product, onSelect, index = 0, variant = 'grid' }: Props) {
+export function ProductCard({ product, onSelect, index = 0, variant = 'grid', orderingEnabled = true }: Props) {
   const hasPromo = product.promo_price != null && product.promo_price < product.price;
   const displayPrice = hasPromo ? product.promo_price! : product.price;
 
@@ -54,9 +56,11 @@ export function ProductCard({ product, onSelect, index = 0, variant = 'grid' }: 
               )}
               <span className="text-sm font-black text-brand-300">{formatCurrency(displayPrice)}</span>
             </div>
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-400 text-sm font-bold text-neutral-950">
-              +
-            </span>
+            {orderingEnabled && (
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-400 text-sm font-bold text-neutral-950">
+                +
+              </span>
+            )}
           </div>
         </div>
       </button>
@@ -96,9 +100,11 @@ export function ProductCard({ product, onSelect, index = 0, variant = 'grid' }: 
             {hasPromo && <span className="mr-1 text-xs text-neutral-500 line-through">{formatCurrency(product.price)}</span>}
             <span className="text-sm font-black text-brand-300">{formatCurrency(displayPrice)}</span>
           </div>
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-400 text-lg leading-none text-neutral-950 transition-transform group-hover:rotate-90">
-            +
-          </span>
+          {orderingEnabled && (
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-400 text-lg leading-none text-neutral-950 transition-transform group-hover:rotate-90">
+              +
+            </span>
+          )}
         </div>
         {!product.is_available && <span className="mt-1 block text-xs font-medium text-red-400">Indisponível</span>}
       </div>

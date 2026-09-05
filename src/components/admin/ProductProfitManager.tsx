@@ -13,7 +13,8 @@ import {
   ListSearchBar,
   ShowMoreToggle,
 } from '@/components/ui/collapsible-list';
-import { FieldGroup, Input, Select } from '@/components/ui/input';
+import { FieldGroup, Input, Select, Textarea } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { Modal, ModalAlert, ModalFooter, ModalSection } from '@/components/ui/modal';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { PageContainer, PageHeader } from '@/components/ui/page-layout';
@@ -61,6 +62,7 @@ function ProfitPreview({
   tax,
   packaging,
   other,
+  compact = false,
 }: {
   price: number;
   cost: number;
@@ -68,25 +70,40 @@ function ProfitPreview({
   tax: number;
   packaging: number;
   other: number;
+  compact?: boolean;
 }) {
   const feeAmount = price * (paymentFee / 100);
   const taxAmount = price * (tax / 100);
   const net = price - cost - feeAmount - taxAmount - packaging - other;
   const margin = price > 0 ? (net / price) * 100 : 0;
+  const markup = cost > 0 ? ((price - cost) / cost) * 100 : 0;
   const tone =
     margin >= 25
-      ? 'text-brand-300 bg-brand-400/10 border-brand-400/30'
+      ? 'border-brand-400/35 bg-brand-400/10 text-brand-300'
       : margin >= 10
-        ? 'text-amber-400 bg-amber-500/10 border-amber-500/30'
-        : 'text-red-400 bg-red-500/10 border-red-500/30';
+        ? 'border-amber-500/35 bg-amber-500/10 text-amber-300'
+        : 'border-red-500/35 bg-red-500/10 text-red-300';
 
   return (
-    <div className={`rounded-xl border p-4 ${tone}`}>
-      <p className="text-[10px] font-bold uppercase tracking-[0.14em]">Lucro real por unidade</p>
-      <p className="mt-1 font-serif text-3xl font-bold">{formatCurrency(net)}</p>
-      <p className="mt-1 text-xs font-semibold">
-        Margem de {margin.toFixed(1)}% · Markup de {cost > 0 ? (((price - cost) / cost) * 100).toFixed(1) : '0'}%
-      </p>
+    <div className={clsx('rounded-2xl border p-3.5 sm:p-4', tone)}>
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] opacity-90">Lucro real / unidade</p>
+          <p className="mt-1 font-serif text-2xl font-bold leading-none sm:text-3xl">{formatCurrency(net)}</p>
+        </div>
+        <div className="shrink-0 text-right text-xs font-semibold leading-relaxed opacity-90">
+          <p>Margem {margin.toFixed(1)}%</p>
+          <p>Markup {markup.toFixed(1)}%</p>
+        </div>
+      </div>
+      {!compact && (
+        <div className="mt-3 grid grid-cols-2 gap-1.5 border-t border-current/15 pt-3 text-[11px] sm:grid-cols-4">
+          <span className="opacity-80">Custo {formatCurrency(cost)}</span>
+          <span className="opacity-80">Taxa {formatCurrency(feeAmount)}</span>
+          <span className="opacity-80">Imposto {formatCurrency(taxAmount)}</span>
+          <span className="opacity-80">Extras {formatCurrency(packaging + other)}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -403,10 +420,11 @@ export function ProductProfitManager({ storeId, products: initialProducts, categ
       {editing !== undefined && (
         <Modal
           onClose={() => setEditing(undefined)}
-          title="Preço que dá lucro"
-          subtitle={editing ? 'Editar produto' : 'Novo cadastro'}
-          description="Calcule margem real com custos, taxas e impostos."
+          title={editing ? editing.name || 'Editar produto' : 'Novo produto'}
+          subtitle="Precificação"
+          description="Defina preço, custos e estoque. O lucro real atualiza na hora."
           size="2xl"
+          bodyClassName="space-y-4"
           headerActions={
             editing ? (
               <button
@@ -421,47 +439,89 @@ export function ProductProfitManager({ storeId, products: initialProducts, categ
             ) : undefined
           }
           footer={
-            <ModalFooter>
-              <Button variant="secondary" size="md" onClick={() => setEditing(undefined)} className="normal-case">
-                Cancelar
-              </Button>
-              <Button type="submit" form="profit-form" variant="primary" size="md" disabled={saving} className="normal-case">
-                <Calculator size={16} />
-                {saving ? 'Salvando...' : 'Salvar produto'}
-              </Button>
-            </ModalFooter>
+            <div className="space-y-3">
+              <ProfitPreview
+                price={number('price')}
+                cost={number('cost_price')}
+                paymentFee={paymentFeeRate}
+                tax={number('tax_rate')}
+                packaging={number('packaging_cost')}
+                other={number('other_variable_cost')}
+              />
+              <ModalFooter>
+                <Button variant="secondary" size="md" onClick={() => setEditing(undefined)} className="normal-case">
+                  Cancelar
+                </Button>
+                <Button type="submit" form="profit-form" variant="primary" size="md" disabled={saving} className="normal-case">
+                  <Calculator size={16} />
+                  {saving ? 'Salvando...' : 'Salvar produto'}
+                </Button>
+              </ModalFooter>
+            </div>
           }
         >
           <form id="profit-form" onSubmit={save} className="space-y-4">
-            <ModalSection title="Dados do produto">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <FieldGroup label="Nome">
-                  <Input value={form.name} onChange={(e) => set('name', e.target.value)} />
-                </FieldGroup>
-                <FieldGroup label="SKU/código">
-                  <Input value={form.sku} onChange={(e) => set('sku', e.target.value)} />
-                </FieldGroup>
-                <FieldGroup label="Descrição" className="sm:col-span-2">
-                  <Input value={form.description} onChange={(e) => set('description', e.target.value)} />
-                </FieldGroup>
-                <FieldGroup label="URL da foto" className="sm:col-span-2">
-                  <Input value={form.image_url} onChange={(e) => set('image_url', e.target.value)} placeholder="https://..." />
-                </FieldGroup>
-                <FieldGroup label="Categoria">
-                  <Select value={form.category_id} onChange={(e) => set('category_id', e.target.value)}>
-                    <option value="">Sem categoria</option>
-                    {categories.map((category) => (
-                      <option key={category.id} value={category.id}>{category.name}</option>
-                    ))}
-                  </Select>
-                </FieldGroup>
-                <FieldGroup label="Preço de venda">
-                  <Input inputMode="decimal" value={form.price} onChange={(e) => set('price', e.target.value)} />
-                </FieldGroup>
+            <ModalSection title="Identidade">
+              <div className="grid gap-3 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:items-start">
+                <div className="relative mx-auto aspect-square w-24 overflow-hidden rounded-2xl border border-border bg-neutral-900 sm:mx-0 sm:w-full">
+                  {form.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={form.image_url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-center text-[10px] font-bold uppercase tracking-wide text-neutral-500">
+                      Sem foto
+                    </div>
+                  )}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <FieldGroup label="Nome" className="sm:col-span-2">
+                    <Input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Ex.: Chopp Heineken" required />
+                  </FieldGroup>
+                  <FieldGroup label="SKU / código">
+                    <Input value={form.sku} onChange={(e) => set('sku', e.target.value)} placeholder="Opcional" />
+                  </FieldGroup>
+                  <FieldGroup label="Categoria">
+                    <Select value={form.category_id} onChange={(e) => set('category_id', e.target.value)}>
+                      <option value="">Sem categoria</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </FieldGroup>
+                </div>
               </div>
+              <FieldGroup label="Descrição" className="mt-3">
+                <Textarea
+                  value={form.description}
+                  onChange={(e) => set('description', e.target.value)}
+                  rows={2}
+                  placeholder="Opcional — aparece no cardápio do cliente"
+                />
+              </FieldGroup>
+              <FieldGroup label="URL da foto" className="mt-3">
+                <Input
+                  value={form.image_url}
+                  onChange={(e) => set('image_url', e.target.value)}
+                  placeholder="https://..."
+                  inputMode="url"
+                />
+              </FieldGroup>
             </ModalSection>
 
-            <ModalSection title="Custos e estoque">
+            <ModalSection title="Preço de venda">
+              <FieldGroup label="Preço (R$)">
+                <Input
+                  inputMode="decimal"
+                  value={form.price}
+                  onChange={(e) => set('price', e.target.value)}
+                  className="font-serif text-lg font-bold"
+                />
+              </FieldGroup>
+            </ModalSection>
+
+            <ModalSection title="Custos" description="Tudo que reduz o lucro por unidade vendida.">
               <div className="grid gap-3 sm:grid-cols-2">
                 <FieldGroup label="Custo do produto">
                   <Input inputMode="decimal" value={form.cost_price} onChange={(e) => set('cost_price', e.target.value)} />
@@ -469,40 +529,54 @@ export function ProductProfitManager({ storeId, products: initialProducts, categ
                 <FieldGroup label="Impostos (%)">
                   <Input inputMode="decimal" value={form.tax_rate} onChange={(e) => set('tax_rate', e.target.value)} />
                 </FieldGroup>
-                <FieldGroup label="Embalagem/frete">
+                <FieldGroup label="Embalagem / frete">
                   <Input inputMode="decimal" value={form.packaging_cost} onChange={(e) => set('packaging_cost', e.target.value)} />
                 </FieldGroup>
-                <FieldGroup label="Outros custos variáveis">
-                  <Input inputMode="decimal" value={form.other_variable_cost} onChange={(e) => set('other_variable_cost', e.target.value)} />
+                <FieldGroup label="Outros custos">
+                  <Input
+                    inputMode="decimal"
+                    value={form.other_variable_cost}
+                    onChange={(e) => set('other_variable_cost', e.target.value)}
+                  />
                 </FieldGroup>
+              </div>
+              <p className="mt-3 text-xs text-neutral-500">
+                Taxa média de pagamento atual: {paymentFeeRate.toFixed(1)}% (já entra no lucro real).
+              </p>
+            </ModalSection>
+
+            <ModalSection title="Estoque e visibilidade">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <FieldGroup label="Quantidade em estoque">
                   <Input inputMode="numeric" value={form.stock_quantity} onChange={(e) => set('stock_quantity', e.target.value)} />
                 </FieldGroup>
                 <FieldGroup label="Alerta de estoque baixo">
                   <Input inputMode="numeric" value={form.reorder_level} onChange={(e) => set('reorder_level', e.target.value)} />
                 </FieldGroup>
-                <label className="flex items-center gap-2 text-sm sm:col-span-2">
-                  <input type="checkbox" checked={form.is_active} onChange={(e) => set('is_active', e.target.checked)} className="rounded" />
-                  Produto ativo
-                </label>
-                <label className="flex items-center gap-2 text-sm sm:col-span-2">
-                  <input type="checkbox" checked={form.is_available} onChange={(e) => set('is_available', e.target.checked)} className="rounded" />
-                  Disponível para venda
-                </label>
+              </div>
+              <div className="mt-4 space-y-3 rounded-xl border border-border bg-black/25 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-ink">Produto ativo</p>
+                    <p className="text-xs text-neutral-500">Aparece no cadastro e relatórios</p>
+                  </div>
+                  <Switch checked={form.is_active} onCheckedChange={(checked) => set('is_active', checked)} aria-label="Produto ativo" />
+                </div>
+                <div className="h-px bg-border" />
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-ink">Disponível para venda</p>
+                    <p className="text-xs text-neutral-500">Pode ser pedido no cardápio e PDV</p>
+                  </div>
+                  <Switch
+                    checked={form.is_available}
+                    onCheckedChange={(checked) => set('is_available', checked)}
+                    aria-label="Disponível para venda"
+                  />
+                </div>
               </div>
             </ModalSection>
           </form>
-
-          <div className="mt-4">
-            <ProfitPreview
-              price={number('price')}
-              cost={number('cost_price')}
-              paymentFee={paymentFeeRate}
-              tax={number('tax_rate')}
-              packaging={number('packaging_cost')}
-              other={number('other_variable_cost')}
-            />
-          </div>
 
           {error && <ModalAlert variant="error">{error}</ModalAlert>}
         </Modal>

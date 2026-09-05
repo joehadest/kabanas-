@@ -18,10 +18,12 @@ interface Props {
   categories: Category[];
   products: Product[];
   hero: ReactNode;
-  /** Substitui o carrinho flutuante padrão (delivery). Ex.: DineInCart no cardápio presencial. */
+  /** Substitui o carrinho flutuante padrão (delivery). Ex.: DineInCart no cardápio presencial. Passe `null` junto com `orderingEnabled={false}` para ocultar o carrinho. */
   cart?: ReactNode;
   /** Link no topo (ex.: "Entrar"). Passe `null` para ocultar (cardápio presencial não exige login). */
   headerLink?: { href: string; label: string } | null;
+  /** Quando false, o cardápio fica só para visualização: some carrinho, quantidade e botão de pedir. */
+  orderingEnabled?: boolean;
 }
 
 export function CatalogView({
@@ -32,6 +34,7 @@ export function CatalogView({
   hero,
   cart,
   headerLink = { href: '/entrar', label: 'Entrar' },
+  orderingEnabled = true,
 }: Props) {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -141,6 +144,7 @@ export function CatalogView({
                       onSelect={setSelectedProduct}
                       index={index}
                       variant="carousel"
+                      orderingEnabled={orderingEnabled}
                     />
                   ))}
                 </div>
@@ -158,6 +162,7 @@ export function CatalogView({
                       onSelect={setSelectedProduct}
                       index={index}
                       variant="carousel"
+                      orderingEnabled={orderingEnabled}
                     />
                   ))}
                 </div>
@@ -167,15 +172,27 @@ export function CatalogView({
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-3.5 lg:grid-cols-3">
             {filtered.map((product, index) => (
-              <ProductCard key={product.id} product={product} onSelect={setSelectedProduct} index={index} />
+              <ProductCard
+                key={product.id}
+                product={product}
+                onSelect={setSelectedProduct}
+                index={index}
+                orderingEnabled={orderingEnabled}
+              />
             ))}
           </div>
         )}
       </main>
 
-      {selectedProduct && <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />}
+      {selectedProduct && (
+        <ProductModal
+          product={selectedProduct}
+          orderingEnabled={orderingEnabled}
+          onClose={() => setSelectedProduct(null)}
+        />
+      )}
 
-      {cart ?? <FloatingCart storeSettings={storeSettings} />}
+      {orderingEnabled && (cart ?? <FloatingCart storeSettings={storeSettings} />)}
       <InstallPWAPrompt storeName={storeSettings.name} logoUrl={storeSettings.logo_url} />
     </div>
   );
