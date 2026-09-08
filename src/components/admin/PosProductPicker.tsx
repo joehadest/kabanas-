@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import clsx from 'clsx';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Loader2, Minus, Plus, StickyNote, X } from 'lucide-react';
+import { ChevronRight, Loader2, Minus, Plus, StickyNote, X } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils/format';
 import { Button } from '@/components/ui/button';
 import { ListSearchBar } from '@/components/ui/collapsible-list';
@@ -115,19 +115,13 @@ function CategoryScrollBar({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const chipRefs = useRef<Map<string | null, HTMLButtonElement>>(new Map());
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
   const updateScrollHints = () => {
     const el = scrollRef.current;
     if (!el) return;
     const maxScroll = el.scrollWidth - el.clientWidth;
-    setCanScrollLeft(el.scrollLeft > 2);
     setCanScrollRight(maxScroll > 2 && el.scrollLeft < maxScroll - 2);
-  };
-
-  const scrollBy = (delta: number) => {
-    scrollRef.current?.scrollBy({ left: delta, behavior: 'smooth' });
   };
 
   useEffect(() => {
@@ -141,7 +135,6 @@ function CategoryScrollBar({
 
     updateScrollHints();
     el.addEventListener('scroll', updateScrollHints, { passive: true });
-
     const observer = new ResizeObserver(updateScrollHints);
     observer.observe(el);
 
@@ -156,77 +149,46 @@ function CategoryScrollBar({
     else chipRefs.current.delete(id);
   };
 
-  const showArrows = canScrollLeft || canScrollRight;
-
-  const arrowButtonClass = (enabled: boolean) =>
-    clsx(
-      'hidden h-8 w-8 shrink-0 touch-manipulation items-center justify-center self-center rounded-full border border-border bg-surface-elevated text-neutral-400 shadow-sm transition-all hover:border-brand-400 hover:text-ink md:flex',
-      !enabled && 'cursor-default opacity-35 hover:border-border hover:text-neutral-400'
-    );
-
   return (
-    <div className="flex min-w-0 max-w-full items-stretch gap-1.5 md:gap-2">
-      <button
-        type="button"
-        onClick={() => {
-          if (canScrollLeft) scrollBy(-240);
-        }}
-        aria-disabled={!canScrollLeft}
-        aria-label="Categorias anteriores"
-        className={clsx(arrowButtonClass(canScrollLeft), !showArrows && 'md:hidden')}
+    <div className="flex min-w-0 max-w-full items-stretch gap-1.5">
+      <div
+        ref={scrollRef}
+        className={clsx(
+          'flex min-w-0 flex-1 gap-2 overflow-x-auto overscroll-x-contain px-0.5 snap-x snap-proximity [-webkit-overflow-scrolling:touch]',
+          'scrollbar-none touch-pan-x pb-1'
+        )}
+        role="tablist"
+        aria-label="Categorias do cardápio"
       >
-        <ChevronLeft size={18} />
-      </button>
-
-      <div className="relative min-w-0 flex-1">
-        {canScrollLeft && (
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-6 bg-gradient-to-r from-black to-transparent md:from-black" />
-        )}
-        {canScrollRight && (
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-6 bg-gradient-to-l from-black to-transparent md:from-black" />
-        )}
-
-        <div
-          ref={scrollRef}
-          className={clsx(
-            'flex gap-2 overflow-x-auto overscroll-x-contain px-0.5 snap-x snap-proximity [-webkit-overflow-scrolling:touch]',
-            'max-md:touch-pan-x max-md:scrollbar-none max-md:pb-1',
-            'md:pb-2 md:[scrollbar-width:thin] md:[scrollbar-color:#d8d4c9_transparent]'
-          )}
-          role="tablist"
-          aria-label="Categorias do cardápio"
-        >
+        <CategoryChip
+          id={null}
+          label="Todos"
+          active={activeCategory === null}
+          onSelect={onSelect}
+          setRef={setChipRef(null)}
+        />
+        {categories.map((cat) => (
           <CategoryChip
-            id={null}
-            label="Todos"
-            active={activeCategory === null}
+            key={cat.id}
+            id={cat.id}
+            label={cat.name}
+            active={activeCategory === cat.id}
             onSelect={onSelect}
-            setRef={setChipRef(null)}
+            setRef={setChipRef(cat.id)}
           />
-          {categories.map((cat) => (
-            <CategoryChip
-              key={cat.id}
-              id={cat.id}
-              label={cat.name}
-              active={activeCategory === cat.id}
-              onSelect={onSelect}
-              setRef={setChipRef(cat.id)}
-            />
-          ))}
-        </div>
+        ))}
       </div>
 
-      <button
-        type="button"
-        onClick={() => {
-          if (canScrollRight) scrollBy(240);
-        }}
-        aria-disabled={!canScrollRight}
-        aria-label="Próximas categorias"
-        className={clsx(arrowButtonClass(canScrollRight), !showArrows && 'md:hidden')}
-      >
-        <ChevronRight size={18} />
-      </button>
+      {canScrollRight && (
+        <button
+          type="button"
+          onClick={() => scrollRef.current?.scrollBy({ left: 240, behavior: 'smooth' })}
+          aria-label="Próximas categorias"
+          className="flex h-8 w-8 shrink-0 touch-manipulation items-center justify-center self-center rounded-full border border-border bg-surface-elevated text-neutral-400 shadow-sm transition-all hover:border-brand-400 hover:text-ink"
+        >
+          <ChevronRight size={18} />
+        </button>
+      )}
     </div>
   );
 }
@@ -349,7 +311,7 @@ function ProductTile({
             alt={product.name}
             fill
             sizes="(min-width: 2560px) 220px, (min-width: 1920px) 200px, (min-width: 1536px) 180px, (min-width: 1280px) 160px, (min-width: 640px) 25vw, 45vw"
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            className="object-cover"
           />
         ) : (
           <span className="flex h-full items-center justify-center bg-neutral-900 font-serif text-3xl text-neutral-600">

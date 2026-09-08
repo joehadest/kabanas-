@@ -35,8 +35,21 @@ function productStatus(product: Product) {
   return { label: 'Ativo', className: 'bg-brand-400/10 text-brand-300' };
 }
 
+function productProfit(product: Product) {
+  const price = Number(product.price) || 0;
+  if (price <= 0) return null;
+  const cost = Number(product.cost_price) || 0;
+  const packaging = Number(product.packaging_cost) || 0;
+  const other = Number(product.other_variable_cost) || 0;
+  const tax = Number(product.tax_rate) || 0;
+  const net = price - cost - packaging - other - price * (tax / 100);
+  const margin = (net / price) * 100;
+  return { net, margin };
+}
+
 function ProductRow({ product, onClick }: { product: Product; onClick: () => void }) {
   const status = productStatus(product);
+  const profit = productProfit(product);
   return (
     <button
       type="button"
@@ -55,6 +68,14 @@ function ProductRow({ product, onClick }: { product: Product; onClick: () => voi
         <p className="truncate text-sm font-semibold text-ink">{product.name}</p>
         <p className="text-xs font-bold text-brand-300">{formatCurrency(product.price)}</p>
       </div>
+      {profit && (
+        <div className="hidden shrink-0 text-right sm:block">
+          <p className={clsx('text-xs font-bold', profit.net >= 0 ? 'text-brand-300' : 'text-red-400')}>
+            {formatCurrency(profit.net)}
+          </p>
+          <p className="text-[10px] text-neutral-500">{profit.margin.toFixed(0)}% margem</p>
+        </div>
+      )}
       <span
         className={clsx(
           'shrink-0 rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide',
@@ -198,6 +219,7 @@ export function CardapioManager({ storeId, defaultTaxRate, initialCategories, in
       <PageHeader
         eyebrow="Gestão de produtos"
         title="Cardápio"
+        description="Produtos, categorias, preços, custos e lucro — tudo em um só lugar."
         action={
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" size="md" onClick={() => setCategoryModal({ mode: 'new' })}>

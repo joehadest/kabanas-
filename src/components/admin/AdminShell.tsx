@@ -18,7 +18,6 @@ const NAV_LINKS = [
   { href: '/admin/caixa', label: 'Caixa', shortLabel: 'Caixa', icon: IconOverview },
   { href: '/admin/cardapio', label: 'Cardápio', shortLabel: 'Menu', icon: IconMenuBook },
   { href: '/admin/mesas', label: 'Mesas', shortLabel: 'Mesas', icon: LayoutGrid },
-  { href: '/admin/precificacao', label: 'Precificação', shortLabel: 'Lucro', icon: IconClock },
   { href: '/admin/inventario', label: 'Inventário', shortLabel: 'Estoque', icon: IconStock },
   { href: '/admin/despesas', label: 'Despesas', shortLabel: 'Despesas', icon: IconStock },
   { href: '/admin/relatorios', label: 'Relatórios', shortLabel: 'Relatórios', icon: IconClock },

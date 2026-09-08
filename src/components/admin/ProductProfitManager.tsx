@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/collapsible-list';
 import { FieldGroup, Input, Select, Textarea } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { ProductImageUpload } from '@/components/ui/product-image-upload';
 import { Modal, ModalAlert, ModalFooter, ModalSection } from '@/components/ui/modal';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { PageContainer, PageHeader } from '@/components/ui/page-layout';
@@ -462,35 +463,28 @@ export function ProductProfitManager({ storeId, products: initialProducts, categ
         >
           <form id="profit-form" onSubmit={save} className="space-y-4">
             <ModalSection title="Identidade">
-              <div className="grid gap-3 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:items-start">
-                <div className="relative mx-auto aspect-square w-24 overflow-hidden rounded-2xl border border-border bg-neutral-900 sm:mx-0 sm:w-full">
-                  {form.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={form.image_url} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-center text-[10px] font-bold uppercase tracking-wide text-neutral-500">
-                      Sem foto
-                    </div>
-                  )}
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <FieldGroup label="Nome" className="sm:col-span-2">
-                    <Input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Ex.: Chopp Heineken" required />
-                  </FieldGroup>
-                  <FieldGroup label="SKU / código">
-                    <Input value={form.sku} onChange={(e) => set('sku', e.target.value)} placeholder="Opcional" />
-                  </FieldGroup>
-                  <FieldGroup label="Categoria">
-                    <Select value={form.category_id} onChange={(e) => set('category_id', e.target.value)}>
-                      <option value="">Sem categoria</option>
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </FieldGroup>
-                </div>
+              <ProductImageUpload
+                storeId={storeId}
+                value={form.image_url}
+                onChange={(url) => set('image_url', url)}
+              />
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <FieldGroup label="Nome" className="sm:col-span-2">
+                  <Input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Ex.: Chopp Heineken" required />
+                </FieldGroup>
+                <FieldGroup label="SKU / código">
+                  <Input value={form.sku} onChange={(e) => set('sku', e.target.value)} placeholder="Opcional" />
+                </FieldGroup>
+                <FieldGroup label="Categoria">
+                  <Select value={form.category_id} onChange={(e) => set('category_id', e.target.value)}>
+                    <option value="">Sem categoria</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </Select>
+                </FieldGroup>
               </div>
               <FieldGroup label="Descrição" className="mt-3">
                 <Textarea
@@ -498,14 +492,6 @@ export function ProductProfitManager({ storeId, products: initialProducts, categ
                   onChange={(e) => set('description', e.target.value)}
                   rows={2}
                   placeholder="Opcional — aparece no cardápio do cliente"
-                />
-              </FieldGroup>
-              <FieldGroup label="URL da foto" className="mt-3">
-                <Input
-                  value={form.image_url}
-                  onChange={(e) => set('image_url', e.target.value)}
-                  placeholder="https://..."
-                  inputMode="url"
                 />
               </FieldGroup>
             </ModalSection>
