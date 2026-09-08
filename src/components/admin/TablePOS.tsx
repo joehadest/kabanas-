@@ -117,7 +117,7 @@ interface Props {
 }
 
 type ComandaTab = 'add' | 'items' | 'pay';
-type SidebarTab = 'items' | 'pay';
+type SidebarTab = 'details' | 'items' | 'pay';
 
 function useCompactComanda(breakpoint = 768) {
   return useIsMobile(breakpoint);
@@ -1294,28 +1294,37 @@ export function TablePOS({
                 'min-h-0 flex-1 overflow-hidden',
                 isCompact
                   ? 'flex h-full min-h-0 flex-col'
-                  : 'grid h-full min-h-0 grid-cols-[minmax(0,1fr)_minmax(17rem,20rem)] grid-rows-[minmax(0,1fr)] gap-4 md:gap-5'
+                  : 'grid h-full min-h-0 grid-cols-[minmax(0,1fr)_minmax(26rem,30rem)] grid-rows-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(28rem,32rem)] xl:gap-5'
               )}
             >
               <div
                 className={clsx(
                   'flex h-full min-h-0 flex-col overflow-hidden',
                   isCompact && comandaTab === 'add' && 'min-h-0 flex-1',
-                  isCompact && comandaTab !== 'add' && 'hidden'
+                  isCompact && comandaTab !== 'add' && 'hidden',
+                  !isCompact &&
+                    'rounded-2xl border border-brand-400/25 bg-neutral-900/70 shadow-[inset_0_1px_0_rgba(212,175,55,0.08)]'
                 )}
               >
                 {!isCompact && (
-                  <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
+                  <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/80 px-4 py-3">
                     <div>
                       <h3 className="font-serif text-lg font-bold text-ink">Cardápio</h3>
-                      <p className="text-xs text-neutral-500">Clique no produto para lançar na mesa</p>
+                      <p className="text-xs text-neutral-500">Toque no produto para lançar na mesa</p>
                     </div>
                     <span className="rounded-lg border border-border bg-black/30 px-2.5 py-1 text-xs font-bold text-neutral-400">
                       {items.length} na comanda
                     </span>
                   </div>
                 )}
-                <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-neutral-900/80 p-3 sm:p-4 md:border-brand-400/20 md:bg-neutral-900/60">
+                <div
+                  className={clsx(
+                    'flex h-full min-h-0 flex-1 flex-col overflow-hidden',
+                    isCompact
+                      ? 'rounded-2xl border border-border bg-neutral-900/80 p-3 sm:p-4'
+                      : 'p-3 sm:p-4'
+                  )}
+                >
                   <PosProductPicker
                     products={products}
                     categories={categories}
@@ -1331,125 +1340,203 @@ export function TablePOS({
 
               <aside
                 className={clsx(
-                  'flex h-full min-h-0 max-h-full flex-col overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]',
+                  'flex h-full min-h-0 flex-col overflow-hidden',
                   isCompact && 'min-h-0 flex-1',
                   isCompact && comandaTab === 'add' && 'hidden',
-                  !isCompact && 'border-l border-border pl-4 md:pl-5'
+                  !isCompact && 'rounded-2xl border border-border bg-surface-elevated'
                 )}
               >
-                <CollapsibleSection
-                  title="Dados da mesa"
-                  subtitle="Cliente, taxas e desconto"
-                  open={tabDetailsOpen}
-                  onOpenChange={setTabDetailsOpen}
-                  className={clsx('mb-3 shrink-0', isCompact && comandaTab === 'pay' && 'hidden')}
-                >
-                  <div className="space-y-4 rounded-2xl border border-border bg-surface-elevated p-3 sm:p-4">
-                    <div className={clsx('grid gap-x-3 gap-y-4', isCompact ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2')}>
-                      <FieldGroup label="Cliente" className="col-span-2">
-                        <Input
-                          value={customerName}
-                          onChange={(e) => setCustomerName(e.target.value)}
-                          placeholder="Nome opcional"
-                        />
-                      </FieldGroup>
-                      <FieldGroup label="Garçom" className="col-span-2">
-                        <Input
-                          value={waiterName}
-                          onChange={(e) => setWaiterName(e.target.value)}
-                          placeholder="Nome opcional"
-                        />
-                      </FieldGroup>
-                      <FieldGroup label="Pessoas">
-                        <Input
-                          value={guestCount}
-                          onChange={(e) => setGuestCount(e.target.value.replace(/\D/g, '').slice(0, 2))}
-                          inputMode="numeric"
-                          placeholder="1"
-                        />
-                      </FieldGroup>
-                      <FieldGroup label="Taxa (%)">
-                        <Input
-                          value={serviceRate}
-                          onChange={(e) => setServiceRate(e.target.value)}
-                          inputMode="decimal"
-                          placeholder="10"
-                        />
-                      </FieldGroup>
-                      <FieldGroup label="Couvert (R$)">
-                        <Input
-                          value={coverCharge}
-                          onChange={(e) => setCoverCharge(e.target.value)}
-                          inputMode="decimal"
-                          placeholder="0,00"
-                        />
-                      </FieldGroup>
-                      <FieldGroup label="Desconto (R$)">
-                        <Input
-                          value={discountAmount}
-                          onChange={(e) => setDiscountAmount(e.target.value)}
-                          inputMode="decimal"
-                          placeholder="0,00"
-                        />
-                      </FieldGroup>
-                    </div>
-                    <Button
-                      variant="secondary"
-                      size="md"
-                      onClick={saveTabDetails}
-                      disabled={savingTabDetails}
-                      className="w-full normal-case"
-                    >
-                      {savingTabDetails ? 'Salvando...' : 'Salvar dados da mesa'}
-                    </Button>
-                  </div>
-                </CollapsibleSection>
-
                 {!isCompact && (
-                  <div className="mb-3 flex shrink-0 gap-1 rounded-xl border border-border bg-surface-elevated p-1">
+                  <div className="flex shrink-0 gap-1 border-b border-border p-2">
                     {(
                       [
-                        { id: 'items' as const, label: 'Itens', badge: items.length },
-                        { id: 'pay' as const, label: 'Pagamento' },
+                        { id: 'details' as const, label: 'Mesa', icon: Users },
+                        { id: 'items' as const, label: 'Itens', icon: ListOrdered, badge: items.length },
+                        { id: 'pay' as const, label: 'Pagamento', icon: WalletCards },
                       ] as const
-                    ).map((tabItem) => (
-                      <button
-                        key={tabItem.id}
-                        type="button"
-                        onClick={() => setSidebarTab(tabItem.id)}
-                        className={clsx(
-                          'flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-bold transition-colors',
-                          sidebarTab === tabItem.id
-                            ? 'bg-brand-600 text-white'
-                            : 'text-neutral-400 hover:bg-white/5'
-                        )}
-                      >
-                        {tabItem.label}
-                        {'badge' in tabItem && tabItem.badge > 0 && (
-                          <span
-                            className={clsx(
-                              'rounded-full px-1.5 py-0.5 text-[10px]',
-                              sidebarTab === tabItem.id ? 'bg-white/20' : 'bg-brand-400/15 text-brand-300'
-                            )}
-                          >
-                            {tabItem.badge}
-                          </span>
-                        )}
-                      </button>
-                    ))}
+                    ).map((tabItem) => {
+                      const Icon = tabItem.icon;
+                      const active = sidebarTab === tabItem.id;
+                      return (
+                        <button
+                          key={tabItem.id}
+                          type="button"
+                          onClick={() => setSidebarTab(tabItem.id)}
+                          className={clsx(
+                            'flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-bold transition-colors',
+                            active
+                              ? 'bg-brand-400 text-neutral-950'
+                              : 'text-neutral-400 hover:bg-white/5 hover:text-ink'
+                          )}
+                        >
+                          <Icon size={14} />
+                          {tabItem.label}
+                          {'badge' in tabItem && tabItem.badge > 0 && (
+                            <span
+                              className={clsx(
+                                'rounded-full px-1.5 py-0.5 text-[10px]',
+                                active ? 'bg-neutral-950/15' : 'bg-brand-400/15 text-brand-300'
+                              )}
+                            >
+                              {tabItem.badge}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
+                )}
+
+                {isCompact ? (
+                  <CollapsibleSection
+                    title="Dados da mesa"
+                    subtitle="Cliente, taxas e desconto"
+                    open={tabDetailsOpen}
+                    onOpenChange={setTabDetailsOpen}
+                    className={clsx('mb-3 shrink-0', comandaTab === 'pay' && 'hidden')}
+                  >
+                    <div className="space-y-4 rounded-2xl border border-border bg-surface-elevated p-3 sm:p-4">
+                      <div className="grid grid-cols-1 gap-x-3 gap-y-4 sm:grid-cols-2">
+                        <FieldGroup label="Cliente" className="col-span-2">
+                          <Input
+                            value={customerName}
+                            onChange={(e) => setCustomerName(e.target.value)}
+                            placeholder="Nome opcional"
+                          />
+                        </FieldGroup>
+                        <FieldGroup label="Garçom" className="col-span-2">
+                          <Input
+                            value={waiterName}
+                            onChange={(e) => setWaiterName(e.target.value)}
+                            placeholder="Nome opcional"
+                          />
+                        </FieldGroup>
+                        <FieldGroup label="Pessoas">
+                          <Input
+                            value={guestCount}
+                            onChange={(e) => setGuestCount(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                            inputMode="numeric"
+                            placeholder="1"
+                          />
+                        </FieldGroup>
+                        <FieldGroup label="Taxa (%)">
+                          <Input
+                            value={serviceRate}
+                            onChange={(e) => setServiceRate(e.target.value)}
+                            inputMode="decimal"
+                            placeholder="10"
+                          />
+                        </FieldGroup>
+                        <FieldGroup label="Couvert (R$)">
+                          <Input
+                            value={coverCharge}
+                            onChange={(e) => setCoverCharge(e.target.value)}
+                            inputMode="decimal"
+                            placeholder="0,00"
+                          />
+                        </FieldGroup>
+                        <FieldGroup label="Desconto (R$)">
+                          <Input
+                            value={discountAmount}
+                            onChange={(e) => setDiscountAmount(e.target.value)}
+                            inputMode="decimal"
+                            placeholder="0,00"
+                          />
+                        </FieldGroup>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="md"
+                        onClick={saveTabDetails}
+                        disabled={savingTabDetails}
+                        className="w-full normal-case"
+                      >
+                        {savingTabDetails ? 'Salvando...' : 'Salvar dados da mesa'}
+                      </Button>
+                    </div>
+                  </CollapsibleSection>
+                ) : (
+                  sidebarTab === 'details' && (
+                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-4 [-webkit-overflow-scrolling:touch]">
+                      <p className="mb-3 text-xs text-neutral-500">Cliente, taxas e desconto da comanda.</p>
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-4">
+                          <FieldGroup label="Cliente" className="col-span-2">
+                            <Input
+                              value={customerName}
+                              onChange={(e) => setCustomerName(e.target.value)}
+                              placeholder="Nome opcional"
+                            />
+                          </FieldGroup>
+                          <FieldGroup label="Garçom" className="col-span-2">
+                            <Input
+                              value={waiterName}
+                              onChange={(e) => setWaiterName(e.target.value)}
+                              placeholder="Nome opcional"
+                            />
+                          </FieldGroup>
+                          <FieldGroup label="Pessoas">
+                            <Input
+                              value={guestCount}
+                              onChange={(e) => setGuestCount(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                              inputMode="numeric"
+                              placeholder="1"
+                            />
+                          </FieldGroup>
+                          <FieldGroup label="Taxa (%)">
+                            <Input
+                              value={serviceRate}
+                              onChange={(e) => setServiceRate(e.target.value)}
+                              inputMode="decimal"
+                              placeholder="10"
+                            />
+                          </FieldGroup>
+                          <FieldGroup label="Couvert (R$)">
+                            <Input
+                              value={coverCharge}
+                              onChange={(e) => setCoverCharge(e.target.value)}
+                              inputMode="decimal"
+                              placeholder="0,00"
+                            />
+                          </FieldGroup>
+                          <FieldGroup label="Desconto (R$)">
+                            <Input
+                              value={discountAmount}
+                              onChange={(e) => setDiscountAmount(e.target.value)}
+                              inputMode="decimal"
+                              placeholder="0,00"
+                            />
+                          </FieldGroup>
+                        </div>
+                        <Button
+                          variant="secondary"
+                          size="md"
+                          onClick={saveTabDetails}
+                          disabled={savingTabDetails}
+                          className="w-full normal-case"
+                        >
+                          {savingTabDetails ? 'Salvando...' : 'Salvar dados da mesa'}
+                        </Button>
+                      </div>
+                    </div>
+                  )
                 )}
 
               <ModalSection
                 title={isCompact ? 'Itens na mesa' : undefined}
                 className={clsx(
-                  'flex h-full min-h-0 max-h-full flex-col overflow-hidden p-3 sm:p-4',
+                  'flex min-h-0 max-h-full flex-col overflow-hidden p-3 sm:p-4',
                   isCompact && comandaTab !== 'items' && 'hidden',
                   !isCompact && sidebarTab !== 'items' && 'hidden',
-                  !isCompact && 'border-0 bg-transparent p-0 shadow-none'
+                  !isCompact && 'min-h-0 flex-1 border-0 bg-transparent p-0 shadow-none'
                 )}
               >
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]">
+                <div
+                  className={clsx(
+                    'min-h-0 flex-1 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]',
+                    !isCompact && 'p-4'
+                  )}
+                >
                   <div className="divide-y divide-border rounded-2xl border border-border bg-surface-elevated">
                     {visibleItems.map((item) => (
                       <div key={item.id} className="flex justify-between gap-4 px-4 py-3.5 sm:px-5 2xl:py-4">
@@ -1492,13 +1579,18 @@ export function TablePOS({
                 title={isCompact ? 'Pagamento e fechamento' : undefined}
                 description={isCompact ? 'Registre os pagamentos. Custos e taxas são somados automaticamente.' : undefined}
                 className={clsx(
-                  'flex h-full min-h-0 max-h-full flex-col overflow-hidden p-3 sm:p-4',
+                  'flex min-h-0 max-h-full flex-col overflow-hidden p-3 sm:p-4',
                   isCompact && comandaTab !== 'pay' && 'hidden',
                   !isCompact && sidebarTab !== 'pay' && 'hidden',
-                  !isCompact && 'border-0 bg-transparent p-0 shadow-none'
+                  !isCompact && 'min-h-0 flex-1 border-0 bg-transparent p-0 shadow-none'
                 )}
               >
-                <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-y-contain 2xl:gap-5">
+                <div
+                  className={clsx(
+                    'flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-y-contain 2xl:gap-5',
+                    !isCompact && 'p-4'
+                  )}
+                >
                   {!isCompact && (
                     <p className="shrink-0 text-xs text-neutral-500">
                       Registre pagamentos e confira o lucro antes de fechar. Use <strong className="text-ink">Remover</strong>{' '}

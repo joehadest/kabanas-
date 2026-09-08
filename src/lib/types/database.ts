@@ -88,6 +88,7 @@ export interface Product {
   category_id: string | null;
   name: string;
   description: string | null;
+  sku?: string | null;
   price: number;
   promo_price: number | null;
   image_url: string | null;
@@ -95,6 +96,8 @@ export interface Product {
   packaging_cost?: number;
   other_variable_cost?: number;
   tax_rate?: number;
+  stock_quantity?: number;
+  reorder_level?: number;
   sort_order?: number;
   is_active: boolean;
   is_available: boolean;

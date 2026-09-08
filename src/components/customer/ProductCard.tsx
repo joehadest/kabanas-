@@ -36,7 +36,7 @@ export function ProductCard({ product, onSelect, index = 0, variant = 'grid', or
               alt={product.name}
               fill
               sizes="200px"
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
+              className="object-cover"
             />
           ) : (
             <span className="flex h-full items-center justify-center font-serif text-2xl text-brand-400">+</span>
@@ -84,7 +84,7 @@ export function ProductCard({ product, onSelect, index = 0, variant = 'grid', or
             alt={product.name}
             fill
             sizes="(min-width: 640px) 96px, 88px"
-            className="object-cover transition-transform duration-500 group-hover:scale-110"
+            className="object-cover"
           />
         ) : (
           <span className="flex h-full items-center justify-center font-serif text-2xl text-brand-400">+</span>

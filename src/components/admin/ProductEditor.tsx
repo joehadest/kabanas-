@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Eye, EyeOff, ImageOff, ImagePlus, PackageCheck, PackageX, Trash2, type LucideIcon } from 'lucide-react';
+import { Eye, EyeOff, PackageCheck, PackageX, Trash2, type LucideIcon } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { formatCurrency, parseDecimal } from '@/lib/utils/format';
 import { cn } from '@/lib/utils';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { FieldGroup, Input, Select } from '@/components/ui/input';
 import { Modal, ModalAlert, ModalFooter } from '@/components/ui/modal';
 import { Switch } from '@/components/ui/switch';
+import { ProductImageUpload } from '@/components/ui/product-image-upload';
 import type { Category, Product, ProductOptionGroup } from '@/lib/types/database';
 
 interface Props {
@@ -105,9 +106,22 @@ function StatusRow({
   );
 }
 
-function MarginPreview({ price, cost, packaging }: { price: number; cost: number; packaging: number }) {
+function MarginPreview({
+  price,
+  cost,
+  packaging,
+  other = 0,
+  tax = 0,
+}: {
+  price: number;
+  cost: number;
+  packaging: number;
+  other?: number;
+  tax?: number;
+}) {
   if (!(price > 0)) return null;
-  const net = price - cost - packaging;
+  const taxAmount = price * (tax / 100);
+  const net = price - cost - packaging - other - taxAmount;
   const margin = (net / price) * 100;
   const tone =
     margin >= 25
@@ -118,7 +132,7 @@ function MarginPreview({ price, cost, packaging }: { price: number; cost: number
 
   return (
     <div className={cn('rounded-xl border px-3.5 py-3', tone)}>
-      <p className="text-[10px] font-bold uppercase tracking-[0.14em] opacity-80">Lucro estimado por unidade</p>
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] opacity-80">Lucro real por unidade</p>
       <div className="mt-1 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
         <span className="font-serif text-xl font-bold">{formatCurrency(net)}</span>
         <span className="text-xs font-bold">Margem de {margin.toFixed(1)}%</span>
@@ -146,6 +160,10 @@ export function ProductEditor({
   const [promoPrice, setPromoPrice] = useState(product?.promo_price != null ? String(product.promo_price) : '');
   const [costPrice, setCostPrice] = useState(formatOptionalNumber(product?.cost_price));
   const [packagingCost, setPackagingCost] = useState(formatOptionalNumber(product?.packaging_cost));
+  const [otherVariableCost, setOtherVariableCost] = useState(formatOptionalNumber(product?.other_variable_cost));
+  const [sku, setSku] = useState(product?.sku ?? '');
+  const [stockQuantity, setStockQuantity] = useState(String(product?.stock_quantity ?? 0));
+  const [reorderLevel, setReorderLevel] = useState(String(product?.reorder_level ?? 0));
   const [taxRate, setTaxRate] = useState(
     product?.tax_rate != null ? String(product.tax_rate) : String(defaultTaxRate)
   );
@@ -164,8 +182,10 @@ export function ProductEditor({
       price: parseDecimal(price) || 0,
       cost: parseDecimal(costPrice) || 0,
       packaging: parseDecimal(packagingCost) || 0,
+      other: parseDecimal(otherVariableCost) || 0,
+      tax: parseDecimal(taxRate) || 0,
     }),
-    [price, costPrice, packagingCost]
+    [price, costPrice, packagingCost, otherVariableCost, taxRate]
   );
 
   const addGroup = () => setGroups((prev) => [...prev, { name: '', is_required: false, min_select: 0, max_select: 1, options: [] }]);
@@ -236,14 +256,24 @@ export function ProductEditor({
     const promoNumber = promoPrice.trim() ? parseDecimal(promoPrice) : NaN;
     const costNumber = costPrice.trim() ? parseDecimal(costPrice) : 0;
     const packagingNumber = packagingCost.trim() ? parseDecimal(packagingCost) : 0;
+    const otherNumber = otherVariableCost.trim() ? parseDecimal(otherVariableCost) : 0;
     const taxNumber = taxRate.trim() ? parseDecimal(taxRate) : 0;
+    const stockNumber = Number.parseInt(stockQuantity.replace(/\D/g, '') || '0', 10);
+    const reorderNumber = Number.parseInt(reorderLevel.replace(/\D/g, '') || '0', 10);
 
     if (!name.trim() || !Number.isFinite(priceNumber) || priceNumber <= 0) {
       setError('Informe nome e um preço válido.');
       setActiveTab('info');
       return;
     }
-    if (!Number.isFinite(costNumber) || costNumber < 0 || !Number.isFinite(packagingNumber) || packagingNumber < 0) {
+    if (
+      !Number.isFinite(costNumber) ||
+      costNumber < 0 ||
+      !Number.isFinite(packagingNumber) ||
+      packagingNumber < 0 ||
+      !Number.isFinite(otherNumber) ||
+      otherNumber < 0
+    ) {
       setError('Custos não podem ser negativos.');
       setActiveTab('preco');
       return;
@@ -262,11 +292,15 @@ export function ProductEditor({
       category_id: categoryId || null,
       name: name.trim(),
       description: description.trim() || null,
+      sku: sku.trim() || null,
       price: priceNumber,
       promo_price: Number.isFinite(promoNumber) && promoNumber > 0 ? promoNumber : null,
       cost_price: costNumber,
       packaging_cost: packagingNumber,
+      other_variable_cost: otherNumber,
       tax_rate: taxNumber,
+      stock_quantity: Number.isFinite(stockNumber) ? Math.max(0, stockNumber) : 0,
+      reorder_level: Number.isFinite(reorderNumber) ? Math.max(0, reorderNumber) : 0,
       image_url: imageUrl.trim() || null,
       is_active: isActive,
       is_available: isAvailable,
@@ -420,37 +454,7 @@ export function ProductEditor({
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
           {activeTab === 'info' && (
             <div className="space-y-3.5">
-              <div className="flex items-start gap-3">
-                <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-border bg-neutral-900">
-                  {imageUrl.trim() ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={imageUrl.trim()} alt="Prévia" className="h-full w-full object-cover" />
-                  ) : (
-                    <span className="flex h-full w-full items-center justify-center text-neutral-600">
-                      <ImagePlus size={22} />
-                    </span>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  <FieldGroup label="URL da imagem">
-                    <Input
-                      value={imageUrl}
-                      onChange={(e) => setImageUrl(e.target.value)}
-                      placeholder="https://..."
-                      className="min-h-11"
-                    />
-                  </FieldGroup>
-                  {imageUrl.trim() && (
-                    <button
-                      type="button"
-                      onClick={() => setImageUrl('')}
-                      className="inline-flex items-center gap-1 text-xs font-bold text-red-400 hover:underline"
-                    >
-                      <ImageOff size={12} /> Remover foto
-                    </button>
-                  )}
-                </div>
-              </div>
+              <ProductImageUpload storeId={storeId} value={imageUrl} onChange={setImageUrl} />
 
               <FieldGroup label="Nome do produto">
                 <Input
@@ -476,6 +480,9 @@ export function ProductEditor({
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </Select>
+              </FieldGroup>
+              <FieldGroup label="SKU / código">
+                <Input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="Opcional" className="min-h-11" />
               </FieldGroup>
             </div>
           )}
@@ -510,15 +517,30 @@ export function ProductEditor({
                   Custos e impostos
                 </p>
                 <p className="mb-3 -mt-2 text-xs text-neutral-500">Usados no PDV para calcular lucro ao fechar a comanda.</p>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <FieldGroup label="Custo (R$)">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <FieldGroup label="Custo do produto (R$)">
                     <Input value={costPrice} onChange={(e) => setCostPrice(e.target.value)} placeholder="0,00" inputMode="decimal" className="min-h-11" />
                   </FieldGroup>
-                  <FieldGroup label="Embalagem (R$)">
+                  <FieldGroup label="Embalagem / frete (R$)">
                     <Input value={packagingCost} onChange={(e) => setPackagingCost(e.target.value)} placeholder="0,00" inputMode="decimal" className="min-h-11" />
+                  </FieldGroup>
+                  <FieldGroup label="Outros custos (R$)">
+                    <Input value={otherVariableCost} onChange={(e) => setOtherVariableCost(e.target.value)} placeholder="0,00" inputMode="decimal" className="min-h-11" />
                   </FieldGroup>
                   <FieldGroup label="Imposto (%)">
                     <Input value={taxRate} onChange={(e) => setTaxRate(e.target.value)} placeholder="0" inputMode="decimal" className="min-h-11" />
+                  </FieldGroup>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-neutral-900 p-4">
+                <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-neutral-400">Estoque</p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <FieldGroup label="Quantidade">
+                    <Input value={stockQuantity} onChange={(e) => setStockQuantity(e.target.value)} inputMode="numeric" className="min-h-11" />
+                  </FieldGroup>
+                  <FieldGroup label="Alerta de estoque baixo">
+                    <Input value={reorderLevel} onChange={(e) => setReorderLevel(e.target.value)} inputMode="numeric" className="min-h-11" />
                   </FieldGroup>
                 </div>
               </div>
