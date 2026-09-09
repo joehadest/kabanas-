@@ -10,7 +10,7 @@ const {
 } = require('electron');
 const { PrintAgent } = require('./agent.cjs');
 const { loadConfig, saveConfig, isSetupComplete, DEFAULT_APP_URL } = require('./config-store.cjs');
-const { listWindowsPrinters, printText } = require('./printers.cjs');
+const { listWindowsPrinters, printRaw } = require('./printers.cjs');
 const { formatTestPage } = require('./format.cjs');
 
 const agent = new PrintAgent();
@@ -155,7 +155,7 @@ function registerIpc() {
   });
 
   ipcMain.handle('test-print', async (_event, { printer }) => {
-    await printText(printer, formatTestPage());
+    await printRaw(printer, formatTestPage());
     return { ok: true };
   });
 

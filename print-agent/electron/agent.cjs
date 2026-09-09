@@ -1,7 +1,7 @@
 const http = require('node:http');
 const { EventEmitter } = require('node:events');
 const { formatJob } = require('./format.cjs');
-const { printText } = require('./printers.cjs');
+const { printRaw } = require('./printers.cjs');
 
 class PrintAgent extends EventEmitter {
   constructor() {
@@ -108,13 +108,13 @@ class PrintAgent extends EventEmitter {
 
   async processJob(job) {
     const printer = this.printerForJob(job);
-    const text = formatJob(job);
+    const data = formatJob(job);
     await this.api(`/api/print-agent/jobs/${job.id}`, {
       method: 'PATCH',
       body: JSON.stringify({ status: 'printing' }),
     });
     try {
-      await printText(printer, text);
+      await printRaw(printer, data);
       await this.api(`/api/print-agent/jobs/${job.id}`, {
         method: 'PATCH',
         body: JSON.stringify({ status: 'printed' }),

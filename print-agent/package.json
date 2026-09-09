@@ -1,6 +1,6 @@
 {
   "name": "kabanas-print-agent",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "Kabanas Impressão — agente local com instalador Windows",
   "author": "Kabanas Beer",

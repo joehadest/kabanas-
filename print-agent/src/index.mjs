@@ -2,13 +2,12 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import { createRequire } from 'node:module';
 import { formatJob } from './format.mjs';
 
-const execFileAsync = promisify(execFile);
+const require = createRequire(import.meta.url);
+const { printRaw } = require('../electron/printers.cjs');
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
 
@@ -61,28 +60,29 @@ function printerForJob(job) {
   return config.customerPrinter || config.defaultPrinter;
 }
 
-async function printToWindows(printerName, text) {
+async function printToWindows(printerName, data) {
   if (!printerName) {
-    console.log('[print preview]\n', text);
+    // Preview: mostra o conteúdo sem os bytes de comando ESC/POS.
+    const preview = data
+      .toString('latin1')
+      .replace(/\x1b[@Eta GM!]?.|\x1d[V!]?../g, '')
+      .replace(/[^\S\r\n]+$/gm, '');
+    console.log('[print preview]\n', preview);
     return;
   }
-  const tmp = path.join(os.tmpdir(), `kabanas-${Date.now()}.txt`);
-  fs.writeFileSync(tmp, text, 'utf8');
-  const ps = `Get-Content -LiteralPath '${tmp.replace(/'/g, "''")}' -Raw | Out-Printer -Name '${printerName.replace(/'/g, "''")}'`;
-  await execFileAsync('powershell.exe', ['-NoProfile', '-Command', ps], { windowsHide: true });
-  fs.unlink(tmp, () => {});
+  await printRaw(printerName, data);
 }
 
 async function processJob(job) {
   const printer = printerForJob(job);
-  const text = formatJob(job);
+  const data = formatJob(job);
   console.log(`[job ${job.id}] ${job.job_type} -> ${printer || 'console'}`);
   await api(`/api/print-agent/jobs/${job.id}`, {
     method: 'PATCH',
     body: JSON.stringify({ status: 'printing' }),
   });
   try {
-    await printToWindows(printer, text);
+    await printToWindows(printer, data);
     await api(`/api/print-agent/jobs/${job.id}`, {
       method: 'PATCH',
       body: JSON.stringify({ status: 'printed' }),
