@@ -2,7 +2,7 @@
 ; https://jrsoftware.org/isdl.php
 
 #define MyAppName "Kabanas Impressão"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "Kabanas Beer"
 #define MyAppExeName "Kabanas Impressao.exe"
 
@@ -22,6 +22,9 @@ WizardStyle=modern
 SetupIconFile=icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 PrivilegesRequired=lowest
+; Fecha o agente em execução (bandeja) antes de atualizar os arquivos
+CloseApplications=force
+RestartApplications=no
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
