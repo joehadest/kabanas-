@@ -65,7 +65,6 @@ export function ProductImageUpload({ storeId, value, onChange, className, varian
         ref={inputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif"
-        capture="environment"
         className="hidden"
         onChange={(e) => void handleFile(e.target.files?.[0])}
       />
