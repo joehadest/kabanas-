@@ -47,7 +47,7 @@ drop type if exists discount_type cascade;
 -- ---------------------------------------------------------------------
 -- ENUMS
 -- ---------------------------------------------------------------------
-create type user_role as enum ('customer', 'restaurant', 'admin');
+create type user_role as enum ('customer', 'restaurant', 'admin', 'waiter');
 create type delivery_fee_type as enum ('fixed', 'per_km');
 create type order_status as enum (
   'received',        -- Recebido

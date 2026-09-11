@@ -4,10 +4,11 @@ import { useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import clsx from 'clsx';
-import { LogOut } from 'lucide-react';
-import { LayoutGrid } from 'lucide-react';
+import { LogOut, LayoutGrid } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { KabanasLogo } from '@/components/shared/KabanasLogo';
+import { isFullAdminRole, isWaiterRole } from '@/lib/auth/roles';
+import type { UserRole } from '@/lib/types/database';
 import { IconOverview, IconOrders, IconMenuBook, IconStock, IconClock, IconSettings } from './AdminDockIcons';
 import { MobileAdminDock } from './MobileAdminDock';
 import { MobileAdminHeader } from './MobileAdminHeader';
@@ -27,14 +28,19 @@ const NAV_LINKS = [
 
 interface Props {
   userEmail: string;
+  role: UserRole;
+  homeHref: string;
   children: React.ReactNode;
 }
 
-export function AdminShell({ userEmail, children }: Props) {
+export function AdminShell({ userEmail, role, homeHref, children }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const mainRef = useRef<HTMLElement>(null);
   const isActive = (href: string) => (href === '/admin' ? pathname === href : pathname.startsWith(href));
+  const links = isWaiterRole(role) ? NAV_LINKS.filter((link) => link.href === '/admin/pdv') : NAV_LINKS;
+  const subtitle = isWaiterRole(role) ? 'Operação de mesas' : 'Gestão do negócio';
+  const roleLabel = isWaiterRole(role) ? 'Garçom' : isFullAdminRole(role) ? 'Admin' : 'Operador';
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -47,13 +53,13 @@ export function AdminShell({ userEmail, children }: Props) {
     <div className="flex h-[100dvh] overflow-hidden bg-black text-ink">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[17rem] flex-col border-r border-white/5 bg-black md:flex">
         <div className="flex h-full flex-col overflow-hidden p-5">
-          <Link href="/admin" className="mb-8 shrink-0 rounded-2xl p-2 transition-colors hover:bg-white/5">
-            <KabanasLogo variant="lockup" size="md" subtitle="Gestão do negócio" />
+          <Link href={homeHref} className="mb-8 shrink-0 rounded-2xl p-2 transition-colors hover:bg-white/5">
+            <KabanasLogo variant="lockup" size="md" subtitle={subtitle} />
           </Link>
 
           <p className="mb-3 shrink-0 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500">Menu</p>
           <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-y-contain scrollbar-none">
-            {NAV_LINKS.map((link) => {
+            {links.map((link) => {
               const Icon = link.icon;
               const active = isActive(link.href);
               return (
@@ -91,7 +97,7 @@ export function AdminShell({ userEmail, children }: Props) {
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-400 opacity-60" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-400" />
                 </span>
-                Loja online
+                {roleLabel}
               </span>
             </div>
             <button
@@ -105,7 +111,7 @@ export function AdminShell({ userEmail, children }: Props) {
         </div>
       </aside>
 
-      <MobileAdminHeader onLogout={handleLogout} scrollRootRef={mainRef} />
+      <MobileAdminHeader onLogout={handleLogout} scrollRootRef={mainRef} homeHref={homeHref} />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden md:pl-[17rem]">
         <main
@@ -116,7 +122,7 @@ export function AdminShell({ userEmail, children }: Props) {
         </main>
       </div>
 
-      <MobileAdminDock />
+      <MobileAdminDock role={role} />
     </div>
   );
 }

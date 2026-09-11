@@ -2,7 +2,7 @@
 // Em produção, prefira gerar via: `supabase gen types typescript --linked`
 // e substituir este arquivo (mantendo os aliases exportados abaixo).
 
-export type UserRole = 'customer' | 'restaurant' | 'admin';
+export type UserRole = 'customer' | 'restaurant' | 'admin' | 'waiter';
 export type OrderStatus = 'received' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled';
 export type PaymentMethod = 'pix' | 'card_on_delivery' | 'cash';
 export type DeliveryFeeType = 'fixed' | 'per_km';

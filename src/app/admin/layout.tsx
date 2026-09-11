@@ -1,6 +1,9 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { AdminShell } from '@/components/admin/AdminShell';
+import { AdminRouteGate } from '@/components/admin/AdminRouteGate';
+import { adminHomeForRole, isStaffRole } from '@/lib/auth/roles';
+import type { UserRole } from '@/lib/types/database';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -12,8 +15,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!user) redirect('/entrar?redirect=/admin');
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  const role = profile?.role as UserRole | undefined;
 
-  if (!profile || (profile.role !== 'admin' && profile.role !== 'restaurant')) {
+  if (!role || !isStaffRole(role)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black px-6 text-center">
         <div className="max-w-md animate-scale-in rounded-3xl border border-white/10 bg-surface-elevated p-8 shadow-modal">
@@ -27,5 +31,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     );
   }
 
-  return <AdminShell userEmail={user.email ?? ''}>{children}</AdminShell>;
+  return (
+    <AdminShell userEmail={user.email ?? ''} role={role} homeHref={adminHomeForRole(role)}>
+      <AdminRouteGate role={role}>{children}</AdminRouteGate>
+    </AdminShell>
+  );
 }

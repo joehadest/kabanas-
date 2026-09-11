@@ -34,12 +34,24 @@ export function EntrarForm({ storeName, logoUrl }: Props) {
     setError(null);
     setSubmitting(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setSubmitting(false);
     if (error) {
+      setSubmitting(false);
       setError('E-mail ou senha incorretos.');
       return;
     }
-    router.push(redirectTo);
+
+    let nextPath = redirectTo;
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+    if (userId) {
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).single();
+      if (profile?.role === 'waiter') {
+        nextPath = '/admin/pdv';
+      }
+    }
+
+    setSubmitting(false);
+    router.push(nextPath);
     router.refresh();
   };
 

@@ -5,6 +5,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Ellipsis, X, LayoutGrid } from 'lucide-react';
 import { Dock } from '@/components/ui/dock-two';
 import { cn } from '@/lib/utils';
+import { isWaiterRole } from '@/lib/auth/roles';
+import type { UserRole } from '@/lib/types/database';
 import { subscribeOverlayLock } from '@/lib/ui/overlay-lock';
 import { useOverlayLock } from '@/lib/ui/use-overlay-lock';
 import { IconOverview, IconOrders, IconMenuBook, IconStock, IconClock, IconSettings } from './AdminDockIcons';
@@ -24,19 +26,34 @@ const ALL_LINKS = [
 
 const PRIMARY_HREFS = new Set(['/admin', '/admin/pdv', '/admin/caixa', '/admin/cardapio']);
 
-export function MobileAdminDock() {
+interface Props {
+  role: UserRole;
+}
+
+export function MobileAdminDock({ role }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
   const [overlayOpen, setOverlayOpen] = useState(false);
+  const waiter = isWaiterRole(role);
 
   useOverlayLock(moreOpen);
   useEffect(() => subscribeOverlayLock((count) => setOverlayOpen(count > 0)), []);
 
   const isActive = (href: string) => (href === '/admin' ? pathname === href : pathname.startsWith(href));
 
-  const primaryLinks = useMemo(() => ALL_LINKS.filter((link) => PRIMARY_HREFS.has(link.href)), []);
-  const moreLinks = useMemo(() => ALL_LINKS.filter((link) => !PRIMARY_HREFS.has(link.href)), []);
+  const links = useMemo(
+    () => (waiter ? ALL_LINKS.filter((link) => link.href === '/admin/pdv') : ALL_LINKS),
+    [waiter]
+  );
+  const primaryLinks = useMemo(
+    () => (waiter ? links : links.filter((link) => PRIMARY_HREFS.has(link.href))),
+    [links, waiter]
+  );
+  const moreLinks = useMemo(
+    () => (waiter ? [] : links.filter((link) => !PRIMARY_HREFS.has(link.href))),
+    [links, waiter]
+  );
   const moreActive = moreLinks.some((link) => isActive(link.href));
   const hideForModal = overlayOpen && !moreOpen;
 
@@ -50,17 +67,21 @@ export function MobileAdminDock() {
         router.push(link.href);
       },
     })),
-    {
-      icon: Ellipsis,
-      label: 'Mais',
-      isActive: moreActive || moreOpen,
-      onClick: () => setMoreOpen((open) => !open),
-    },
+    ...(!waiter
+      ? [
+          {
+            icon: Ellipsis,
+            label: 'Mais',
+            isActive: moreActive || moreOpen,
+            onClick: () => setMoreOpen((open) => !open),
+          },
+        ]
+      : []),
   ];
 
   return (
     <>
-      {moreOpen && (
+      {moreOpen && !waiter && (
         <div className="fixed inset-0 z-40 md:hidden" role="dialog" aria-modal="true" aria-label="Mais opções">
           <button
             type="button"
