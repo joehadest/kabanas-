@@ -1,6 +1,8 @@
+import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getActiveStore } from '@/lib/data/get-store';
 import { FinancialDashboard } from '@/components/admin/FinancialDashboard';
+import { WAITER_HOME, isWaiterRole } from '@/lib/auth/roles';
 
 export const revalidate = 0;
 
@@ -11,10 +13,17 @@ function currentMonthKey() {
 }
 
 export default async function AdminDashboardPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) {
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+    if (isWaiterRole(profile?.role)) redirect(WAITER_HOME);
+  }
+
   const store = await getActiveStore();
   if (!store) return <p className="p-6 text-sm text-neutral-500">Loja não configurada.</p>;
-
-  const supabase = await createClient();
   const month = currentMonthKey();
 
   const [{ data: sales, error }, { data: expenses }, { data: receivables }, { data: products }, { data: goals }] =

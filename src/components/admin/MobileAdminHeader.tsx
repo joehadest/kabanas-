@@ -11,10 +11,11 @@ import { isOverlayLocked, subscribeOverlayLock } from '@/lib/ui/overlay-lock';
 interface Props {
   onLogout: () => void;
   scrollRootRef: React.RefObject<HTMLElement | null>;
+  homeHref?: string;
 }
 
 /** Header mobile que some ao rolar para baixo ou com qualquer modal/overlay aberto. */
-export function MobileAdminHeader({ onLogout, scrollRootRef }: Props) {
+export function MobileAdminHeader({ onLogout, scrollRootRef, homeHref = '/admin' }: Props) {
   const [hidden, setHidden] = useState(false);
   const [overlayOpen, setOverlayOpen] = useState(false);
   const lastScrollTop = useRef(0);
@@ -64,7 +65,7 @@ export function MobileAdminHeader({ onLogout, scrollRootRef }: Props) {
     >
       <div className="bg-black" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="flex h-12 w-full max-w-[100vw] items-center justify-between gap-2 px-3 sm:h-14 sm:px-5">
-          <Link href="/admin" className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
+          <Link href={homeHref} className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
             <span className="shrink-0">
               <KabanasLogo variant="badge" size="sm" />
             </span>

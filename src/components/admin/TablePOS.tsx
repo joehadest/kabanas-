@@ -114,6 +114,8 @@ interface Props {
   defaultServiceRate: number;
   defaultCoverCharge: number;
   printSettings: Pick<PrintSettings, 'auto_print_kitchen' | 'auto_print_customer' | 'print_agent_url'>;
+  /** Quando true, esconde config do salão, KDS e atalho de abrir caixa. */
+  restricted?: boolean;
 }
 
 type ComandaTab = 'add' | 'items' | 'pay';
@@ -137,10 +139,12 @@ const statusLabel: Record<string, string> = {
   attention: 'Chamar garçom',
 };
 
-function cashRequiredMessage(errorMessage?: string): string {
+function cashRequiredMessage(errorMessage?: string, restricted = false): string {
   const msg = errorMessage?.trim() ?? '';
   if (msg.includes('Abra o caixa')) {
-    return 'Abra o caixa antes de registrar pagamentos. Vá em Caixa e abra um turno.';
+    return restricted
+      ? 'Abra o caixa antes de registrar pagamentos. Peça a um administrador para abrir o turno.'
+      : 'Abra o caixa antes de registrar pagamentos. Vá em Caixa e abra um turno.';
   }
   return msg || 'Não foi possível concluir a operação.';
 }
@@ -203,6 +207,7 @@ export function TablePOS({
   defaultServiceRate,
   defaultCoverCharge,
   printSettings,
+  restricted = false,
 }: Props) {
   const isCompact = useCompactComanda();
   const [areas, setAreas] = useState(initialAreas);
@@ -562,7 +567,12 @@ export function TablePOS({
   const addPayment = async () => {
     if (!tab || !selected) return;
     if (!cashSession) {
-      showToast('Abra o caixa antes de registrar pagamentos. Vá em Caixa e abra um turno.', 'error');
+      showToast(
+        restricted
+          ? 'Abra o caixa antes de registrar pagamentos. Peça a um administrador para abrir o turno.'
+          : 'Abra o caixa antes de registrar pagamentos. Vá em Caixa e abra um turno.',
+        'error'
+      );
       return;
     }
     if (!payments.length) {
@@ -644,7 +654,7 @@ export function TablePOS({
     }
 
     if (error || !data) {
-      showToast(cashRequiredMessage(error?.message), 'error');
+      showToast(cashRequiredMessage(error?.message, restricted), 'error');
       return;
     }
     patchTable(selected.id, (table) => ({
@@ -669,7 +679,12 @@ export function TablePOS({
   const close = async () => {
     if (!tab || !selected) return;
     if (!cashSession) {
-      showToast('Abra o caixa antes de fechar a comanda. Vá em Caixa e abra um turno.', 'error');
+      showToast(
+        restricted
+          ? 'Abra o caixa antes de fechar a comanda. Peça a um administrador para abrir o turno.'
+          : 'Abra o caixa antes de fechar a comanda. Vá em Caixa e abra um turno.',
+        'error'
+      );
       return;
     }
     setClosing(true);
@@ -685,7 +700,7 @@ export function TablePOS({
     setClosing(false);
     setCloseConfirmOpen(false);
     if (error) {
-      showToast(cashRequiredMessage(error.message), 'error');
+      showToast(cashRequiredMessage(error.message, restricted), 'error');
       return;
     }
 
@@ -841,18 +856,20 @@ export function TablePOS({
         title="Mesas e comandas"
         description="Lance os pedidos na mesa. Ao fechar a comanda, custos, taxas, impostos e lucro são calculados automaticamente."
         action={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="secondary" size="md" onClick={() => setManagerOpen(true)} className="normal-case">
-              <LayoutGrid size={16} />
-              Gerenciar salão
-            </Button>
-            <Link href="/admin/kds">
-              <Button variant="primary" size="md" className="normal-case">
-                <ChefHat size={16} />
-                Cozinha
+          restricted ? undefined : (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="secondary" size="md" onClick={() => setManagerOpen(true)} className="normal-case">
+                <LayoutGrid size={16} />
+                Gerenciar salão
               </Button>
-            </Link>
-          </div>
+              <Link href="/admin/kds">
+                <Button variant="primary" size="md" className="normal-case">
+                  <ChefHat size={16} />
+                  Cozinha
+                </Button>
+              </Link>
+            </div>
+          )
         }
       />
 
@@ -864,15 +881,19 @@ export function TablePOS({
               <div>
                 <p className="font-semibold">Caixa fechado</p>
                 <p className="mt-1 text-neutral-400">
-                  Pagamentos e fechamento de comandas exigem um caixa aberto no seu usuário.
+                  {restricted
+                    ? 'Pagamentos e fechamento de comandas exigem um caixa aberto na loja. Peça a um administrador para abrir o turno.'
+                    : 'Pagamentos e fechamento de comandas exigem um caixa aberto no seu usuário.'}
                 </p>
               </div>
             </div>
-            <Link href="/admin/caixa" className="shrink-0">
-              <Button variant="primary" size="md" className="normal-case">
-                Abrir caixa
-              </Button>
-            </Link>
+            {!restricted && (
+              <Link href="/admin/caixa" className="shrink-0">
+                <Button variant="primary" size="md" className="normal-case">
+                  Abrir caixa
+                </Button>
+              </Link>
+            )}
           </div>
         </Alert>
       ) : (
@@ -941,10 +962,12 @@ export function TablePOS({
         {tables.length === 0 && (
           <div className="rounded-2xl border border-dashed border-border p-10 text-center">
             <p className="text-sm text-neutral-500">Nenhuma mesa cadastrada ainda.</p>
-            <Button variant="primary" size="md" onClick={() => setManagerOpen(true)} className="mt-4 normal-case">
-              <Plus size={16} />
-              Cadastrar mesas
-            </Button>
+            {!restricted && (
+              <Button variant="primary" size="md" onClick={() => setManagerOpen(true)} className="mt-4 normal-case">
+                <Plus size={16} />
+                Cadastrar mesas
+              </Button>
+            )}
           </div>
         )}
 
@@ -958,41 +981,45 @@ export function TablePOS({
       <div className="mt-8">
         <RestaurantSalesHistory
           sales={recentSales}
-          onRemoveSale={(saleId) => setPendingConfirm({ type: 'removeSale', saleId })}
+          onRemoveSale={
+            restricted ? undefined : (saleId) => setPendingConfirm({ type: 'removeSale', saleId })
+          }
           removingSaleId={removingSaleId}
         />
       </div>
 
-      <TableManager
-        storeId={storeId}
-        areas={areas}
-        tables={tables.map((t) => ({
-          id: t.id,
-          name: t.name,
-          seats: t.seats,
-          area_id: t.area_id,
-          is_active: t.is_active,
-          sort_order: t.sort_order,
-          tabs: t.tabs.map((tab) => ({ id: tab.id, status: tab.status })),
-        }))}
-        open={managerOpen}
-        onClose={() => setManagerOpen(false)}
-        onUpdate={(nextAreas, nextTables) => {
-          handleTablesUpdate(
-            nextAreas,
-            nextTables.map((t) => {
-              const existing = tables.find((table) => table.id === t.id);
-              return {
-                ...t,
-                dining_areas: t.area_id
-                  ? [{ name: nextAreas.find((a) => a.id === t.area_id)?.name || 'Salão' }]
-                  : [],
-                tabs: existing?.tabs ?? [],
-              };
-            })
-          );
-        }}
-      />
+      {!restricted && (
+        <TableManager
+          storeId={storeId}
+          areas={areas}
+          tables={tables.map((t) => ({
+            id: t.id,
+            name: t.name,
+            seats: t.seats,
+            area_id: t.area_id,
+            is_active: t.is_active,
+            sort_order: t.sort_order,
+            tabs: t.tabs.map((tab) => ({ id: tab.id, status: tab.status })),
+          }))}
+          open={managerOpen}
+          onClose={() => setManagerOpen(false)}
+          onUpdate={(nextAreas, nextTables) => {
+            handleTablesUpdate(
+              nextAreas,
+              nextTables.map((t) => {
+                const existing = tables.find((table) => table.id === t.id);
+                return {
+                  ...t,
+                  dining_areas: t.area_id
+                    ? [{ name: nextAreas.find((a) => a.id === t.area_id)?.name || 'Salão' }]
+                    : [],
+                  tabs: existing?.tabs ?? [],
+                };
+              })
+            );
+          }}
+        />
+      )}
 
       {selected && tab && (
         <Modal
@@ -1251,23 +1278,21 @@ export function TablePOS({
               <Button variant="secondary" size="md" onClick={() => setSelected(null)} className="normal-case">
                 Fechar
               </Button>
-              {(items.length > 0 || (tab.tab_payments?.length ?? 0) > 0) && (
-                <Button
-                  variant="outline"
-                  size="md"
-                  onClick={() =>
-                    setPendingConfirm({
-                      type: 'voidComanda',
-                      hasContent: items.length > 0 || (tab.tab_payments?.length ?? 0) > 0,
-                    })
-                  }
-                  disabled={voidingComanda}
-                  className="normal-case border-red-500/30 text-red-400 hover:border-red-500/50 hover:bg-red-500/10"
-                >
-                  <Trash2 size={16} />
-                  {voidingComanda ? 'Cancelando...' : 'Cancelar comanda'}
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                size="md"
+                onClick={() =>
+                  setPendingConfirm({
+                    type: 'voidComanda',
+                    hasContent: items.length > 0 || (tab.tab_payments?.length ?? 0) > 0,
+                  })
+                }
+                disabled={voidingComanda}
+                className="normal-case border-red-500/30 text-red-400 hover:border-red-500/50 hover:bg-red-500/10"
+              >
+                <Trash2 size={16} />
+                {voidingComanda ? 'Cancelando...' : 'Cancelar comanda'}
+              </Button>
               <Button
                 variant="primary"
                 size="md"
@@ -1804,11 +1829,17 @@ export function TablePOS({
 
                   {!cashSession && (
                     <Alert variant="warning" className="mt-1">
-                      Abra o caixa em{' '}
-                      <Link href="/admin/caixa" className="font-semibold underline hover:text-amber-200">
-                        Caixa
-                      </Link>{' '}
-                      para registrar pagamentos nesta comanda.
+                      {restricted ? (
+                        <>Peça a um administrador para abrir o caixa e registrar pagamentos nesta comanda.</>
+                      ) : (
+                        <>
+                          Abra o caixa em{' '}
+                          <Link href="/admin/caixa" className="font-semibold underline hover:text-amber-200">
+                            Caixa
+                          </Link>{' '}
+                          para registrar pagamentos nesta comanda.
+                        </>
+                      )}
                     </Alert>
                   )}
 
@@ -1977,24 +2008,22 @@ export function TablePOS({
             >
               Voltar às mesas
             </Button>
-            {(items.length > 0 || (tab.tab_payments?.length ?? 0) > 0) && (
-              <Button
-                variant="outline"
-                size="md"
-                onClick={() => {
-                  setMoreActionsOpen(false);
-                  setPendingConfirm({
-                    type: 'voidComanda',
-                    hasContent: items.length > 0 || (tab.tab_payments?.length ?? 0) > 0,
-                  });
-                }}
-                disabled={voidingComanda}
-                className="w-full normal-case justify-start border-red-500/30 text-red-400 hover:border-red-500/50 hover:bg-red-500/10"
-              >
-                <Trash2 size={16} />
-                {voidingComanda ? 'Cancelando...' : 'Cancelar comanda'}
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => {
+                setMoreActionsOpen(false);
+                setPendingConfirm({
+                  type: 'voidComanda',
+                  hasContent: items.length > 0 || (tab.tab_payments?.length ?? 0) > 0,
+                });
+              }}
+              disabled={voidingComanda}
+              className="w-full normal-case justify-start border-red-500/30 text-red-400 hover:border-red-500/50 hover:bg-red-500/10"
+            >
+              <Trash2 size={16} />
+              {voidingComanda ? 'Cancelando...' : 'Cancelar comanda'}
+            </Button>
           </div>
         </Modal>
       )}

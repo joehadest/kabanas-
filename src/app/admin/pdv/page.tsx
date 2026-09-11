@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { getActiveStore } from '@/lib/data/get-store';
 import { TablePOS } from '@/components/admin/TablePOS';
+import { isWaiterRole } from '@/lib/auth/roles';
 
 export const revalidate = 0;
 
@@ -63,42 +64,80 @@ export default async function PDVPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: tables, error: tablesError }, { data: areas }, { data: products }, { data: payments }, { data: categories }, { data: recentSales }, { data: cashSession }, { data: storeDefaults }] =
-    await Promise.all([
-      fetchDiningTables(supabase, store.id),
-      supabase.from('dining_areas').select('id,name').eq('store_id', store.id).order('sort_order'),
-      supabase
-        .from('products')
-        .select('id,name,price,cost_price,packaging_cost,other_variable_cost,tax_rate,category_id,image_url,is_available')
-        .eq('store_id', store.id)
-        .eq('is_active', true)
-        .order('name'),
-      supabase.from('payment_methods').select('id,name,fee_rate').eq('store_id', store.id).eq('is_active', true),
-      supabase.from('categories').select('id,name').eq('store_id', store.id).order('sort_order'),
-      supabase
-        .from('sales')
-        .select('id,total_amount,total_cost,payment_fee,tax_amount,net_profit,occurred_at,notes,sale_items(product_name,quantity)')
-        .eq('store_id', store.id)
-        .order('occurred_at', { ascending: false })
-        .limit(30),
-      user
-        ? supabase
-            .from('cash_sessions')
-            .select('id,terminal_name')
-            .eq('store_id', store.id)
-            .eq('operator_id', user.id)
-            .eq('status', 'open')
-            .eq('is_voided', false)
-            .order('opened_at', { ascending: false })
-            .limit(1)
-            .maybeSingle()
-        : Promise.resolve({ data: null, error: null }),
-      supabase
-        .from('store_settings')
-        .select('name,default_service_rate,default_cover_charge,auto_print_kitchen,auto_print_customer,print_agent_url')
-        .eq('id', store.id)
-        .single(),
-    ]);
+  const { data: profile } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).single()
+    : { data: null };
+  const restricted = isWaiterRole(profile?.role);
+
+  const cashSessionQuery = user
+    ? restricted
+      ? supabase
+          .from('cash_sessions')
+          .select('id,terminal_name')
+          .eq('store_id', store.id)
+          .eq('status', 'open')
+          .order('opened_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : supabase
+          .from('cash_sessions')
+          .select('id,terminal_name')
+          .eq('store_id', store.id)
+          .eq('operator_id', user.id)
+          .eq('status', 'open')
+          .eq('is_voided', false)
+          .order('opened_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+    : Promise.resolve({ data: null, error: null });
+
+  const [
+    { data: tables, error: tablesError },
+    { data: areas },
+    { data: products },
+    { data: payments },
+    { data: categories },
+    { data: recentSales },
+    cashSessionResult,
+    { data: storeDefaults },
+  ] = await Promise.all([
+    fetchDiningTables(supabase, store.id),
+    supabase.from('dining_areas').select('id,name').eq('store_id', store.id).order('sort_order'),
+    supabase
+      .from('products')
+      .select('id,name,price,cost_price,packaging_cost,other_variable_cost,tax_rate,category_id,image_url,is_available')
+      .eq('store_id', store.id)
+      .eq('is_active', true)
+      .order('name'),
+    supabase.from('payment_methods').select('id,name,fee_rate').eq('store_id', store.id).eq('is_active', true),
+    supabase.from('categories').select('id,name').eq('store_id', store.id).order('sort_order'),
+    supabase
+      .from('sales')
+      .select('id,total_amount,total_cost,payment_fee,tax_amount,net_profit,occurred_at,notes,sale_items(product_name,quantity)')
+      .eq('store_id', store.id)
+      .order('occurred_at', { ascending: false })
+      .limit(30),
+    cashSessionQuery,
+    supabase
+      .from('store_settings')
+      .select('name,default_service_rate,default_cover_charge,auto_print_kitchen,auto_print_customer,print_agent_url')
+      .eq('id', store.id)
+      .single(),
+  ]);
+
+  let cashSession = cashSessionResult.data ?? null;
+  if (!restricted && user && cashSessionResult.error?.message?.includes('is_voided')) {
+    const fallback = await supabase
+      .from('cash_sessions')
+      .select('id,terminal_name')
+      .eq('store_id', store.id)
+      .eq('operator_id', user.id)
+      .eq('status', 'open')
+      .order('opened_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    cashSession = fallback.data;
+  }
 
   if (tablesError) {
     const hint = migrationHint(tablesError.message);
@@ -145,6 +184,7 @@ export default async function PDVPage() {
         auto_print_customer: Boolean(storeDefaults?.auto_print_customer),
         print_agent_url: storeDefaults?.print_agent_url ?? 'http://127.0.0.1:9100',
       }}
+      restricted={restricted}
     />
   );
 }
