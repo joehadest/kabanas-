@@ -67,7 +67,7 @@ export function PrintPreview({ jobType, payload, paperWidth = 80, className }: P
       )}
     >
       <div className="border-b border-black border-dashed px-3 py-2 text-center">
-        <p className="text-xs font-black uppercase">{receipt.store_name || 'Kabanas'}</p>
+          <p className="text-xs font-black uppercase">{receipt.store_name || 'Boteco Kabanas Beer'}</p>
         <p className="mt-1 text-sm font-bold">Conta do cliente</p>
         <p className="text-lg font-black">{receipt.tab}</p>
         {(receipt.customer || receipt.waiter) && (

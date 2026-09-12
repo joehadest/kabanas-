@@ -11,7 +11,7 @@ export const SAMPLE_KITCHEN: KitchenTicketPayload = {
 
 export const SAMPLE_CUSTOMER: CustomerReceiptPayload = {
   tab: 'Mesa 05',
-  store_name: 'Kabanas',
+  store_name: 'Boteco Kabanas Beer',
   customer: 'João',
   waiter: 'Maria',
   guest_count: 3,

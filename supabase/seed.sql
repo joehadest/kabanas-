@@ -15,7 +15,7 @@ insert into store_settings (
   name, slug, tagline, phone, address_city, address_state,
   delivery_fee_type, delivery_fee_fixed, min_order_value
 ) values (
-  'Kabanas Delivery', 'kabanas', 'Sabor de verdade, entregue rápido.', '(11) 99999-9999', 'São Paulo', 'SP',
+  'Boteco Kabanas Beer', 'kabanas', 'Petisco, cerveja e boas histórias', '(11) 99999-9999', 'São Paulo', 'SP',
   'fixed', 6.90, 20.00
 );
 
