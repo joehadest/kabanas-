@@ -149,16 +149,25 @@ class Ticket {
 function formatKitchen(payload) {
   const t = new Ticket();
 
-  t.center().bold(true).size('big').text('COZINHA / BAR');
-  t.size('tall').text(payload.tab || 'Comanda');
-  t.size('normal').bold(false).left();
+  // Evitar GS ! 2x (SIZE_BIG) e itens em altura dupla na TM-T20X:
+  // em alguns firmwares a combinação com bold+double-strike gera cupom
+  // em branco (o cupom do cliente, em tamanho normal, imprime).
+  t.center().bold(true).size('tall').text('COZINHA / BAR');
+  t.size('normal').text(payload.tab || 'Comanda');
+  t.bold(false).left();
   t.text(LINE);
 
-  for (const item of payload.items || []) {
-    t.bold(true).size('tall').textWrapped(`${item.quantity}x ${item.name}`, '   ');
-    t.size('normal').bold(false);
-    if (item.notes) t.textWrapped(`>> ${item.notes}`, '   ');
-    t.blank();
+  const items = payload.items || [];
+  if (!items.length) {
+    t.text('(Sem itens)');
+  } else {
+    for (const item of items) {
+      const qty = Number(item.quantity) || 0;
+      const name = String(item.name || item.product_name || 'Item').trim() || 'Item';
+      t.bold(true).textWrapped(`${qty}x ${name}`, '   ').bold(false);
+      if (item.notes) t.textWrapped(`>> ${item.notes}`, '   ');
+      t.blank();
+    }
   }
 
   t.text(LINE);
@@ -224,7 +233,8 @@ function formatJob(job) {
 /** @returns {Buffer} */
 function formatTestPage() {
   const t = new Ticket();
-  t.center().bold(true).size('big').text('KABANAS');
+  // Mesmo padrão seguro da via da cozinha: sem SIZE_BIG (2x largura).
+  t.center().bold(true).size('tall').text('KABANAS');
   t.size('normal').text('TESTE DE IMPRESSÃO');
   t.bold(false).left();
   t.text(LINE);
@@ -233,6 +243,9 @@ function formatTestPage() {
   t.text('Acentuação: ÁÉÍÓÚ ãõ ç — Ção, Água, Pão');
   t.text(row('Largura 48 colunas', 'OK'));
   t.text('123456789012345678901234567890123456789012345678');
+  t.text(LINE);
+  t.center().bold(true).text('COZINHA / BAR (amostra)').bold(false);
+  t.text('1x Item de teste da cozinha');
   t.text(LINE);
   t.center().text(new Date().toLocaleString('pt-BR')).left();
   t.blank(3).cut();
