@@ -34,6 +34,7 @@ import type { PrintSettings } from '@/lib/printing/types';
 import { PosProductPicker } from './PosProductPicker';
 import { RestaurantSalesHistory, type RestaurantSale } from './RestaurantSalesHistory';
 import { TableManager } from './TableManager';
+import { usePdvTablesSync } from '@/hooks/usePdvTablesSync';
 
 type Area = { id: string; name: string };
 
@@ -211,7 +212,7 @@ export function TablePOS({
 }: Props) {
   const isCompact = useCompactComanda();
   const [areas, setAreas] = useState(initialAreas);
-  const [tables, setTables] = useState(initialTables);
+  const { tables, setTables } = usePdvTablesSync(storeId, initialTables);
   const [recentSales, setRecentSales] = useState(initialRecentSales);
   const [selected, setSelected] = useState<Table | null>(null);
   const [managerOpen, setManagerOpen] = useState(false);
@@ -348,6 +349,17 @@ export function TablePOS({
     setCoverCharge(String(tab.cover_charge ?? defaultCoverCharge));
     setDiscountAmount(String(tab.discount_amount || 0));
   }, [tab?.id, defaultServiceRate, defaultCoverCharge]);
+
+  // Mantém a comanda aberta alinhada com o mapa sincronizado (outro garçom/admin).
+  useEffect(() => {
+    setSelected((prev) => {
+      if (!prev) return prev;
+      const next = tables.find((table) => table.id === prev.id);
+      if (!next) return null;
+      if (!next.tabs[0]) return null;
+      return next;
+    });
+  }, [tables]);
 
   const visibleItems = showAllItems ? items : items.slice(0, DEFAULT_LIST_LIMIT);
   const hiddenItemCount = Math.max(0, items.length - DEFAULT_LIST_LIMIT);
