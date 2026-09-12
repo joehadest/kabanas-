@@ -179,7 +179,7 @@ function formatKitchen(payload) {
 function formatCustomer(payload) {
   const t = new Ticket();
 
-  t.center().bold(true).size('tall').text(payload.store_name || 'Kabanas');
+  t.center().bold(true).size('tall').text(payload.store_name || 'Boteco Kabanas Beer');
   t.size('normal').bold(false).left();
   t.text(LINE);
 

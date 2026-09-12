@@ -489,4 +489,4 @@ alter publication supabase_realtime add table order_status_history;
 -- SEED mínimo (opcional) — descomente para popular em dev
 -- =====================================================================
 -- insert into store_settings (name, slug, delivery_fee_type, delivery_fee_fixed, min_order_value)
--- values ('Kabanas Delivery', 'kabanas', 'fixed', 6.90, 20.00);
+-- values ('Boteco Kabanas Beer', 'kabanas', 'fixed', 6.90, 20.00);
