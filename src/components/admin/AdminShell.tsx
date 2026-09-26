@@ -50,8 +50,8 @@ export function AdminShell({ userEmail, role, homeHref, children }: Props) {
   };
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-black text-ink">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[17rem] flex-col border-r border-white/5 bg-black md:flex">
+    <div className="flex h-[100dvh] overflow-hidden bg-black text-ink print:h-auto print:overflow-visible print:bg-white">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[17rem] flex-col border-r border-white/5 bg-black print:hidden md:flex">
         <div className="flex h-full flex-col overflow-hidden p-5">
           <Link href={homeHref} className="mb-8 shrink-0 rounded-2xl p-2 transition-colors hover:bg-white/5">
             <KabanasLogo variant="lockup" size="md" subtitle={subtitle} />
@@ -111,18 +111,22 @@ export function AdminShell({ userEmail, role, homeHref, children }: Props) {
         </div>
       </aside>
 
-      <MobileAdminHeader onLogout={handleLogout} scrollRootRef={mainRef} homeHref={homeHref} />
+      <div className="print:hidden">
+        <MobileAdminHeader onLogout={handleLogout} scrollRootRef={mainRef} homeHref={homeHref} />
+      </div>
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden md:pl-[17rem]">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden md:pl-[17rem] print:overflow-visible print:pl-0">
         <main
           ref={mainRef}
-          className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pt-[calc(3rem+env(safe-area-inset-top,0px))] pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))] sm:pt-[calc(3.5rem+env(safe-area-inset-top,0px))] md:pt-0 md:pb-0"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pt-[calc(3rem+env(safe-area-inset-top,0px))] pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))] sm:pt-[calc(3.5rem+env(safe-area-inset-top,0px))] md:pt-0 md:pb-0 print:overflow-visible print:p-0"
         >
           {children}
         </main>
       </div>
 
-      <MobileAdminDock role={role} />
+      <div className="print:hidden">
+        <MobileAdminDock role={role} />
+      </div>
     </div>
   );
 }

@@ -109,3 +109,26 @@
     text-wrap: balance;
   }
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm 11mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #171717 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  body {
+    background-image: none !important;
+  }
+
+  .report-print-document {
+    display: block !important;
+  }
+}
