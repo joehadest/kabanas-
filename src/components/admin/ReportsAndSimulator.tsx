@@ -29,7 +29,9 @@ import { FloatingToast, useFloatingToast } from '@/components/ui/floating-toast'
 import { FieldGroup, Input } from '@/components/ui/input';
 import { ShowMoreToggle, useLimitedList } from '@/components/ui/collapsible-list';
 import { EmptyState, PageContainer, PageHeader, Panel, StatCard } from '@/components/ui/page-layout';
+import { ReportPrintDocument } from '@/components/admin/ReportPrintDocument';
 import { cn } from '@/lib/utils';
+import { BRAND } from '@/lib/brand';
 
 type Period = '7d' | '30d' | 'month' | 'year' | 'all';
 
@@ -61,6 +63,7 @@ interface Props {
   expenses: Expense[];
   payments: PaymentMethod[];
   defaultTaxRate?: number;
+  storeName?: string;
 }
 
 const PERIOD_OPTIONS: { id: Period; label: string }[] = [
@@ -206,7 +209,13 @@ function exportReportCsv(params: {
   URL.revokeObjectURL(url);
 }
 
-export function ReportsAndSimulator({ sales, expenses, payments, defaultTaxRate = 0 }: Props) {
+export function ReportsAndSimulator({
+  sales,
+  expenses,
+  payments,
+  defaultTaxRate = 0,
+  storeName,
+}: Props) {
   const { toast, showToast, clearToast } = useFloatingToast();
   const [period, setPeriod] = useState<Period>('30d');
   const [price, setPrice] = useState('100');
@@ -349,27 +358,54 @@ export function ReportsAndSimulator({ sales, expenses, payments, defaultTaxRate 
     showToast('Relatório exportado.', 'success');
   };
 
+  const handleExportPdf = () => {
+    window.print();
+  };
+
+  const printSales = useMemo(
+    () =>
+      [...filteredSales].sort(
+        (a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime()
+      ),
+    [filteredSales]
+  );
+
+  const printExpenses = useMemo(
+    () =>
+      [...filteredExpenses]
+        .sort((a, b) => expenseDate(b).getTime() - expenseDate(a).getTime())
+        .map((expense) => ({
+          description: expense.description,
+          amount: expense.amount,
+          paid_at: expense.paid_at,
+          due_date: expense.due_date,
+          category: categoryName(expense),
+        })),
+    [filteredExpenses]
+  );
+
   return (
-    <PageContainer className="max-w-7xl print:max-w-none">
+    <PageContainer className="max-w-7xl print:m-0 print:max-w-none print:p-0">
+      <div className="print:hidden">
       <PageHeader
         eyebrow="Análises"
         title="Relatórios e simulador"
         description="DRE do período, evolução de faturamento e simulação de margem por forma de pagamento."
         action={
-          <div className="flex flex-wrap gap-2 print:hidden">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="md" onClick={handleExportCsv}>
               <Download size={16} />
               Exportar CSV
             </Button>
-            <Button variant="primary" size="md" onClick={() => window.print()}>
+            <Button variant="primary" size="md" onClick={handleExportPdf} disabled={!hasData}>
               <FileText size={16} />
-              Imprimir
+              Exportar PDF
             </Button>
           </div>
         }
       />
 
-      <div className="mt-6 flex flex-wrap gap-2 print:hidden">
+      <div className="mt-6 flex flex-wrap gap-2">
         {PERIOD_OPTIONS.map((option) => (
           <button
             key={option.id}
@@ -423,7 +459,7 @@ export function ReportsAndSimulator({ sales, expenses, payments, defaultTaxRate 
             />
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-neutral-500 print:text-neutral-700">
+          <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-neutral-500">
             <span>{metrics.salesCount} vendas no período</span>
             <span>·</span>
             <span>{paidExpenses.length} despesas pagas</span>
@@ -632,10 +668,10 @@ export function ReportsAndSimulator({ sales, expenses, payments, defaultTaxRate 
       )}
 
       <Panel
-        className="mt-6 print:break-before-page"
+        className="mt-6"
         eyebrow="Simulador"
         title="Quanto sobra desta venda?"
-        action={<Calculator className="text-brand-300 print:hidden" size={20} />}
+        action={<Calculator className="text-brand-300" size={20} />}
       >
         <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
           <div className="grid grid-cols-2 gap-3">
@@ -713,6 +749,19 @@ export function ReportsAndSimulator({ sales, expenses, payments, defaultTaxRate 
       </Panel>
 
       <FloatingToast toast={toast} onClose={clearToast} />
+      </div>
+
+      {hasData && (
+        <ReportPrintDocument
+          storeName={storeName || BRAND.name}
+          periodLabel={periodLabel(period)}
+          metrics={metrics}
+          expensesByCategory={expensesByCategory}
+          sales={printSales}
+          expenses={printExpenses}
+          paidExpensesCount={paidExpenses.length}
+        />
+      )}
     </PageContainer>
   );
 }
