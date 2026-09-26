@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { getActiveStore } from '@/lib/data/get-store';
 import { PaymentSettings } from '@/components/admin/PaymentSettings';
+import { StoreSettingsForm } from '@/components/shared/StoreSettingsForm';
+import { PageContainer } from '@/components/ui/page-layout';
 
 export const revalidate = 0;
 
@@ -42,15 +44,20 @@ export default async function ConfiguracoesPage() {
   const profitGoal = goals?.find((goal) => goal.goal_type === 'profit')?.amount ?? 0;
 
   return (
-    <PaymentSettings
-      storeId={store.id}
-      taxRegime={storeRow?.tax_regime ?? 'MEI'}
-      defaultTaxRate={Number(storeRow?.default_tax_rate ?? 0)}
-      defaultServiceRate={Number(storeRow?.default_service_rate ?? 10)}
-      defaultCoverCharge={Number(storeRow?.default_cover_charge ?? 0)}
-      revenueGoal={Number(revenueGoal)}
-      profitGoal={Number(profitGoal)}
-      initialPayments={payments ?? []}
-    />
+    <>
+      <PageContainer className="max-w-5xl pb-0 sm:pb-0">
+        <StoreSettingsForm store={store} />
+      </PageContainer>
+      <PaymentSettings
+        storeId={store.id}
+        taxRegime={storeRow?.tax_regime ?? 'MEI'}
+        defaultTaxRate={Number(storeRow?.default_tax_rate ?? 0)}
+        defaultServiceRate={Number(storeRow?.default_service_rate ?? 10)}
+        defaultCoverCharge={Number(storeRow?.default_cover_charge ?? 0)}
+        revenueGoal={Number(revenueGoal)}
+        profitGoal={Number(profitGoal)}
+        initialPayments={payments ?? []}
+      />
+    </>
   );
 }

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import clsx from 'clsx';
-import { KabanasLogo } from '@/components/shared/KabanasLogo';
+import { StoreLogo } from '@/components/shared/StoreLogo';
 import { createClient } from '@/lib/supabase/client';
 
 const NAV_LINKS = [
@@ -13,10 +13,12 @@ const NAV_LINKS = [
 
 interface Props {
   userEmail: string;
+  storeName: string;
+  logoUrl?: string | null;
   children: React.ReactNode;
 }
 
-export function PainelShell({ userEmail, children }: Props) {
+export function PainelShell({ userEmail, storeName, logoUrl, children }: Props) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -32,8 +34,16 @@ export function PainelShell({ userEmail, children }: Props) {
       <nav className="fixed inset-x-0 top-0 z-40 border-b border-white/10 bg-black text-white">
         <div className="bg-black" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
           <div className="flex h-12 w-full max-w-[100vw] items-center justify-between gap-2 px-3 sm:h-14 sm:px-6">
-            <Link href="/painel/pedidos" className="min-w-0 shrink">
-              <KabanasLogo variant="lockup" size="sm" subtitle="Operação" />
+            <Link href="/painel/pedidos" className="flex min-w-0 shrink items-center gap-2.5">
+              <StoreLogo logoUrl={logoUrl} name={storeName} size="sm" />
+              <span className="min-w-0">
+                <span className="block truncate font-display text-base leading-tight text-white sm:text-lg">
+                  {storeName}
+                </span>
+                <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-300">
+                  Operação
+                </span>
+              </span>
             </Link>
             <div className="flex h-full min-w-0 flex-1 items-stretch justify-center gap-0.5 overflow-x-auto scrollbar-none">
               {NAV_LINKS.map((link) => (

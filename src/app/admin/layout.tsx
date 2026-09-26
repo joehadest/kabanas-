@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { AdminShell } from '@/components/admin/AdminShell';
 import { AdminRouteGate } from '@/components/admin/AdminRouteGate';
 import { adminHomeForRole, isStaffRole } from '@/lib/auth/roles';
+import { getActiveStore } from '@/lib/data/get-store';
+import { BRAND } from '@/lib/brand';
 import type { UserRole } from '@/lib/types/database';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -14,7 +16,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   if (!user) redirect('/entrar?redirect=/admin');
 
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  const [{ data: profile }, store] = await Promise.all([
+    supabase.from('profiles').select('role').eq('id', user.id).single(),
+    getActiveStore(),
+  ]);
   const role = profile?.role as UserRole | undefined;
 
   if (!role || !isStaffRole(role)) {
@@ -32,7 +37,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <AdminShell userEmail={user.email ?? ''} role={role} homeHref={adminHomeForRole(role)}>
+    <AdminShell
+      userEmail={user.email ?? ''}
+      role={role}
+      homeHref={adminHomeForRole(role)}
+      storeName={store?.name ?? BRAND.shortName}
+      logoUrl={store?.logo_url}
+    >
       <AdminRouteGate role={role}>{children}</AdminRouteGate>
     </AdminShell>
   );

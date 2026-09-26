@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { PainelShell } from '@/components/admin/PainelShell';
+import { getActiveStore } from '@/lib/data/get-store';
+import { BRAND } from '@/lib/brand';
 
 export default async function PainelLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -11,7 +13,10 @@ export default async function PainelLayout({ children }: { children: React.React
 
   if (!user) redirect('/entrar?redirect=/painel/pedidos');
 
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  const [{ data: profile }, store] = await Promise.all([
+    supabase.from('profiles').select('role').eq('id', user.id).single(),
+    getActiveStore(),
+  ]);
 
   if (!profile || (profile.role !== 'admin' && profile.role !== 'restaurant')) {
     return (
@@ -27,5 +32,13 @@ export default async function PainelLayout({ children }: { children: React.React
     );
   }
 
-  return <PainelShell userEmail={user.email ?? ''}>{children}</PainelShell>;
+  return (
+    <PainelShell
+      userEmail={user.email ?? ''}
+      storeName={store?.name ?? BRAND.shortName}
+      logoUrl={store?.logo_url}
+    >
+      {children}
+    </PainelShell>
+  );
 }

@@ -1,8 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { HoverBorderGradient } from '@/components/ui/hover-border-gradient';
+import { StoreImageUpload } from '@/components/ui/store-image-upload';
+import { removeStoreImage } from '@/lib/storage/store-images';
 import type { StoreSettings } from '@/lib/types/database';
 
 const INPUT_CLASS =
@@ -23,6 +26,9 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 export function StoreSettingsForm({ store }: { store: StoreSettings }) {
   const supabase = createClient();
+  const router = useRouter();
+  const committedLogoRef = useRef(store.logo_url ?? '');
+  const logoOrphansRef = useRef<string[]>([]);
   const [form, setForm] = useState({
     name: store.name,
     tagline: store.tagline ?? '',
@@ -44,17 +50,38 @@ export function StoreSettingsForm({ store }: { store: StoreSettings }) {
   const set = <K extends keyof typeof form>(key: K) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
 
+  const setLogoUrl = (url: string) => {
+    setForm((f) => {
+      const previous = f.logo_url.trim();
+      const committed = committedLogoRef.current.trim();
+      // Uploads intermediários no bucket brand/ (ainda não salvos) podem ser limpos após o save.
+      if (
+        previous &&
+        previous !== url &&
+        previous !== committed &&
+        previous.includes('/brand/') &&
+        !logoOrphansRef.current.includes(previous)
+      ) {
+        logoOrphansRef.current.push(previous);
+      }
+      return { ...f, logo_url: url };
+    });
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setSaved(false);
     setError(null);
+
+    const nextLogo = form.logo_url.trim() || null;
+    const previousLogo = committedLogoRef.current.trim() || null;
 
     const { data, error: saveError } = await supabase
       .from('store_settings')
       .update({
         ...form,
         tagline: form.tagline || null,
-        logo_url: form.logo_url || null,
+        logo_url: nextLogo,
         banner_url: form.banner_url || null,
         phone: form.phone || null,
         address_street: form.address_street || null,
@@ -69,7 +96,18 @@ export function StoreSettingsForm({ store }: { store: StoreSettings }) {
       setError('Não foi possível salvar. Verifique se sua conta tem permissão de administrador.');
       return;
     }
+
+    if (previousLogo && previousLogo !== nextLogo) {
+      void removeStoreImage(supabase, previousLogo);
+    }
+    for (const orphan of logoOrphansRef.current) {
+      if (orphan !== nextLogo) void removeStoreImage(supabase, orphan);
+    }
+    logoOrphansRef.current = [];
+    committedLogoRef.current = nextLogo ?? '';
+
     setSaved(true);
+    router.refresh();
   };
 
   return (
@@ -89,18 +127,10 @@ export function StoreSettingsForm({ store }: { store: StoreSettings }) {
               className={INPUT_CLASS}
             />
           </Field>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="URL da logo">
-              <input value={form.logo_url} onChange={set('logo_url')} placeholder="https://..." className={INPUT_CLASS} />
-            </Field>
-            <Field label="URL do banner (hero)">
-              <input value={form.banner_url} onChange={set('banner_url')} placeholder="https://..." className={INPUT_CLASS} />
-            </Field>
-          </div>
-          <p className="text-xs text-neutral-400">
-            Sem hospedagem de imagens configurada ainda — cole a URL de uma imagem já publicada (ex: Supabase Storage, Imgur).
-            Sem isso, a logo usa as iniciais da loja automaticamente.
-          </p>
+          <StoreImageUpload storeId={store.id} value={form.logo_url} onChange={setLogoUrl} />
+          <Field label="URL do banner (hero)">
+            <input value={form.banner_url} onChange={set('banner_url')} placeholder="https://..." className={INPUT_CLASS} />
+          </Field>
         </div>
       </section>
 

@@ -1,10 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { LogOut } from 'lucide-react';
-import { KabanasLogo } from '@/components/shared/KabanasLogo';
-import { BRAND } from '@/lib/brand';
+import { StoreLogo } from '@/components/shared/StoreLogo';
 import { cn } from '@/lib/utils';
 import { isOverlayLocked, subscribeOverlayLock } from '@/lib/ui/overlay-lock';
 
@@ -12,10 +11,18 @@ interface Props {
   onLogout: () => void;
   scrollRootRef: React.RefObject<HTMLElement | null>;
   homeHref?: string;
+  storeName: string;
+  logoUrl?: string | null;
 }
 
 /** Header mobile que some ao rolar para baixo ou com qualquer modal/overlay aberto. */
-export function MobileAdminHeader({ onLogout, scrollRootRef, homeHref = '/admin' }: Props) {
+export function MobileAdminHeader({
+  onLogout,
+  scrollRootRef,
+  homeHref = '/admin',
+  storeName,
+  logoUrl,
+}: Props) {
   const [hidden, setHidden] = useState(false);
   const [overlayOpen, setOverlayOpen] = useState(false);
   const lastScrollTop = useRef(0);
@@ -67,11 +74,11 @@ export function MobileAdminHeader({ onLogout, scrollRootRef, homeHref = '/admin'
         <div className="flex h-12 w-full max-w-[100vw] items-center justify-between gap-2 px-3 sm:h-14 sm:px-5">
           <Link href={homeHref} className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
             <span className="shrink-0">
-              <KabanasLogo variant="badge" size="sm" />
+              <StoreLogo logoUrl={logoUrl} name={storeName} size="sm" />
             </span>
             <span className="min-w-0">
               <span className="block truncate font-display text-base leading-tight text-white sm:text-lg">
-                {BRAND.shortName}
+                {storeName}
               </span>
               <span className="mt-0.5 hidden text-[9px] font-semibold uppercase tracking-[0.16em] text-brand-300 min-[380px]:block">
                 Gestão

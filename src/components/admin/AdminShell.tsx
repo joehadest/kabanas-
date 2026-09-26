@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import clsx from 'clsx';
 import { LogOut, LayoutGrid } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { KabanasLogo } from '@/components/shared/KabanasLogo';
+import { StoreLogo } from '@/components/shared/StoreLogo';
 import { isFullAdminRole, isWaiterRole } from '@/lib/auth/roles';
 import type { UserRole } from '@/lib/types/database';
 import { IconOverview, IconOrders, IconMenuBook, IconStock, IconClock, IconSettings } from './AdminDockIcons';
@@ -30,10 +30,12 @@ interface Props {
   userEmail: string;
   role: UserRole;
   homeHref: string;
+  storeName: string;
+  logoUrl?: string | null;
   children: React.ReactNode;
 }
 
-export function AdminShell({ userEmail, role, homeHref, children }: Props) {
+export function AdminShell({ userEmail, role, homeHref, storeName, logoUrl, children }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const mainRef = useRef<HTMLElement>(null);
@@ -54,7 +56,15 @@ export function AdminShell({ userEmail, role, homeHref, children }: Props) {
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[17rem] flex-col border-r border-white/5 bg-black print:hidden md:flex">
         <div className="flex h-full flex-col overflow-hidden p-5">
           <Link href={homeHref} className="mb-8 shrink-0 rounded-2xl p-2 transition-colors hover:bg-white/5">
-            <KabanasLogo variant="lockup" size="md" subtitle={subtitle} />
+            <span className="flex items-center gap-3">
+              <StoreLogo logoUrl={logoUrl} name={storeName} size="sm" />
+              <span className="min-w-0">
+                <span className="block font-display text-lg leading-tight text-white sm:text-xl">{storeName}</span>
+                <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-300">
+                  {subtitle}
+                </span>
+              </span>
+            </span>
           </Link>
 
           <p className="mb-3 shrink-0 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500">Menu</p>
@@ -112,7 +122,13 @@ export function AdminShell({ userEmail, role, homeHref, children }: Props) {
       </aside>
 
       <div className="print:hidden">
-        <MobileAdminHeader onLogout={handleLogout} scrollRootRef={mainRef} homeHref={homeHref} />
+        <MobileAdminHeader
+          onLogout={handleLogout}
+          scrollRootRef={mainRef}
+          homeHref={homeHref}
+          storeName={storeName}
+          logoUrl={logoUrl}
+        />
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden md:pl-[17rem] print:overflow-visible print:pl-0">
