@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, useState, type ReactNode } from 'react';
+import { useEffect, useCallback, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
@@ -26,9 +26,11 @@ interface ModalProps {
   /** Ações no header (ex.: ícone excluir), à esquerda do fechar — padrão do modal de mesas. */
   headerActions?: ReactNode;
   className?: string;
+  headerClassName?: string;
   bodyClassName?: string;
   footerClassName?: string;
   motionPreset?: 'default' | 'fade';
+  trapFocus?: boolean;
 }
 
 const SIZE_MAP: Record<NonNullable<ModalProps['size']>, string> = {
@@ -81,11 +83,15 @@ export function Modal({
   hideHeader = false,
   headerActions,
   className,
+  headerClassName,
   bodyClassName,
   footerClassName,
   motionPreset = 'default',
+  trapFocus = false,
 }: ModalProps) {
   const [mounted, setMounted] = useState(false);
+  const titleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const effectiveVariant = autoSheetOnMobile && isMobile && variant === 'center' ? 'sheet' : variant;
   const isSheet = effectiveVariant === 'sheet';
@@ -96,11 +102,36 @@ export function Modal({
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
+      if (e.key !== 'Tab' || !trapFocus) return;
+      const controls = Array.from(panelRef.current?.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href], [tabindex="0"]'
+      ) ?? []).filter((element) => element.getClientRects().length > 0);
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (!first) {
+        e.preventDefault();
+        panelRef.current?.focus();
+      } else if (!panelRef.current?.contains(document.activeElement) || (e.shiftKey && document.activeElement === first)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     },
-    [onClose]
+    [onClose, trapFocus]
   );
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (!mounted || !open || !trapFocus) return;
+    const previousFocus = document.activeElement;
+    panelRef.current?.querySelector<HTMLElement>('button:not(:disabled)')?.focus({ preventScroll: true });
+    return () => {
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus({ preventScroll: true });
+    };
+  }, [mounted, open, trapFocus]);
 
   useEffect(() => {
     if (!open) return;
@@ -126,7 +157,7 @@ export function Modal({
           )}
           role="dialog"
           aria-modal="true"
-          aria-labelledby={title ? 'modal-title' : undefined}
+          aria-labelledby={title ? titleId : undefined}
         >
           <motion.div
             className="absolute inset-0 z-0 bg-black/80 backdrop-blur-[6px]"
@@ -140,6 +171,8 @@ export function Modal({
           />
 
           <motion.div
+            ref={panelRef}
+            tabIndex={trapFocus ? -1 : undefined}
             className={cn(
               'relative z-10 flex w-full min-h-0 touch-manipulation flex-col overflow-hidden',
               'border border-border bg-neutral-950',
@@ -172,7 +205,7 @@ export function Modal({
             {hero}
 
             {showHeader && (
-              <div className="relative shrink-0 border-b border-border bg-neutral-950 px-4 py-3.5 sm:px-6 sm:py-4">
+              <div className={cn('relative shrink-0 border-b border-border bg-neutral-950 px-4 py-3.5 sm:px-6 sm:py-4', headerClassName)}>
                 <div
                   className={cn(
                     'flex items-start justify-between gap-4',
@@ -185,7 +218,7 @@ export function Modal({
                     )}
                     {title && (
                       <h2
-                        id="modal-title"
+                        id={titleId}
                         className={cn(
                           'font-serif font-bold leading-tight text-ink',
                           subtitle ? 'mt-1 text-xl sm:text-2xl' : 'text-xl sm:text-2xl'

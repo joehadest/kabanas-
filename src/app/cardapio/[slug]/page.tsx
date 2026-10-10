@@ -51,11 +51,17 @@ export default async function CardapioPage({ params }: Props) {
   // garçons continuam lançando pedidos normalmente pelo PDV.
   const orderingEnabled = store.customer_ordering_enabled !== false;
 
+  const isNonAlcoholicCategory = (category: Category) =>
+    category.name.trim().localeCompare('Bebidas sem álcool', 'pt-BR', { sensitivity: 'base' }) === 0;
+  const orderedCategories = [...(categories ?? [])].sort(
+    (first, second) => Number(isNonAlcoholicCategory(first)) - Number(isNonAlcoholicCategory(second))
+  );
+
   return (
     <CatalogView
       storeName={store.name}
       storeSettings={store}
-      categories={categories ?? []}
+      categories={orderedCategories}
       products={products ?? []}
       orderingEnabled={orderingEnabled}
       hero={<DineInHero key="hero" store={store} orderingEnabled={orderingEnabled} />}

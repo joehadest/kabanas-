@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
+import clsx from 'clsx';
+import { Search, SearchX, X } from 'lucide-react';
 import { CategoryTabs } from './CategoryTabs';
 import { ProductCard } from './ProductCard';
 import { ProductModal } from './ProductModal';
@@ -18,180 +19,181 @@ interface Props {
   categories: Category[];
   products: Product[];
   hero: ReactNode;
-  /** Substitui o carrinho flutuante padrão (delivery). Ex.: DineInCart no cardápio presencial. Passe `null` junto com `orderingEnabled={false}` para ocultar o carrinho. */
   cart?: ReactNode;
-  /** Link no topo (ex.: "Entrar"). Passe `null` para ocultar (cardápio presencial não exige login). */
   headerLink?: { href: string; label: string } | null;
-  /** Quando false, o cardápio fica só para visualização: some carrinho, quantidade e botão de pedir. */
   orderingEnabled?: boolean;
 }
 
+const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
 export function CatalogView({
-  storeName,
-  storeSettings,
-  categories,
-  products,
-  hero,
-  cart,
-  headerLink = { href: '/entrar', label: 'Entrar' },
-  orderingEnabled = true,
+  storeName, storeSettings, categories, products, hero, cart,
+  headerLink = { href: '/entrar', label: 'Entrar' }, orderingEnabled = true,
 }: Props) {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-
-  const normalizedSearch = search.trim().toLowerCase();
+  const [navigationHeight, setNavigationHeight] = useState(128);
+  const navigationRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const sectionRefs = useRef(new Map<string, HTMLElement>());
+  const normalizedSearch = normalize(search.trim());
   const isSearching = normalizedSearch.length > 0;
-  const showGrouped = !isSearching && activeCategory === null;
+  const showGrouped = !isSearching;
 
-  const filtered = useMemo(() => {
-    return products.filter((p) => {
-      const matchesCategory = isSearching || !activeCategory || p.category_id === activeCategory;
-      const matchesSearch = !isSearching || p.name.toLowerCase().includes(normalizedSearch);
-      return matchesCategory && matchesSearch;
-    });
-  }, [products, activeCategory, isSearching, normalizedSearch]);
+  useEffect(() => {
+    const navigation = navigationRef.current;
+    if (!navigation) return;
+    const observer = new ResizeObserver(() => setNavigationHeight(navigation.getBoundingClientRect().height));
+    observer.observe(navigation);
+    return () => observer.disconnect();
+  }, []);
+
+  const showResults = () => requestAnimationFrame(() => mainRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' }));
+
+  const filtered = useMemo(() => products.filter((product) => {
+    const matchesSearch = !isSearching || normalize(`${product.name} ${product.description ?? ''}`).includes(normalizedSearch);
+    return matchesSearch;
+  }), [products, isSearching, normalizedSearch]);
 
   const grouped = useMemo(() => {
-    if (!showGrouped) return [];
+    const groups = categories.map((category) => ({
+      id: category.id, name: category.name, description: category.description,
+      products: products.filter((product) => product.category_id === category.id),
+    })).filter((group) => group.products.length > 0);
+    const categoryIds = new Set(categories.map((category) => category.id));
+    const others = products.filter((product) => !product.category_id || !categoryIds.has(product.category_id));
+    if (others.length) groups.push({ id: 'other', name: 'Outros', description: null, products: others });
+    return groups;
+  }, [categories, products]);
 
-    return categories
-      .map((cat) => ({
-        category: cat,
-        products: products.filter((p) => p.category_id === cat.id),
-      }))
-      .filter((group) => group.products.length > 0);
-  }, [categories, products, showGrouped]);
+  useEffect(() => {
+    if (isSearching) return;
+    let frame = 0;
+    const updateCategory = () => {
+      frame = 0;
+      const activationLine = navigationHeight + 24;
+      let currentId: string | null = null;
+      for (const group of grouped) {
+        const section = sectionRefs.current.get(group.id);
+        if (section && section.getBoundingClientRect().top <= activationLine) currentId = group.id;
+      }
+      // Uma seção curta no final pode não alcançar a linha abaixo do menu fixo.
+      if (window.scrollY > 0 && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2) {
+        currentId = grouped[grouped.length - 1]?.id ?? null;
+      }
+      setActiveCategory(currentId === 'other' ? null : currentId);
+    };
+    const scheduleUpdate = () => {
+      if (!frame) frame = requestAnimationFrame(updateCategory);
+    };
+    updateCategory();
+    window.addEventListener('scroll', scheduleUpdate, { passive: true });
+    window.addEventListener('resize', scheduleUpdate);
+    // Atualiza a posição das seções quando fotos e fontes alteram sua altura.
+    const observer = new ResizeObserver(scheduleUpdate);
+    if (mainRef.current) observer.observe(mainRef.current);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener('scroll', scheduleUpdate);
+      window.removeEventListener('resize', scheduleUpdate);
+    };
+  }, [grouped, isSearching, navigationHeight]);
 
-  const uncategorized = useMemo(() => {
-    if (!showGrouped) return [];
-    return products.filter((p) => !p.category_id);
-  }, [products, showGrouped]);
+  const selectCategory = (id: string | null) => {
+    setActiveCategory(id);
+    setSearch('');
+    requestAnimationFrame(() => {
+      const target = id ? sectionRefs.current.get(id) : mainRef.current;
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      (target ?? mainRef.current)?.scrollIntoView({ block: 'start', behavior: reducedMotion ? 'instant' : 'smooth' });
+    });
+  };
+
+  const renderProducts = (items: Product[]) => (
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
+      {items.map((product) => (
+        <ProductCard key={product.id} product={product} onSelect={setSelectedProduct} orderingEnabled={orderingEnabled} />
+      ))}
+    </div>
+  );
+
+  const heading = isSearching ? 'Resultados da busca' : 'Nosso cardápio';
 
   return (
-    <div className="min-h-screen pb-32 paper-surface">
+    <div className={clsx('min-h-screen bg-surface font-sans', orderingEnabled ? 'pb-32' : 'pb-10')}>
       {hero}
-
-      <div className="sticky top-0 z-30 shadow-[0_10px_20px_rgba(23,22,18,0.08)]">
-        <header className="border-b border-white/10 bg-kabanas-charcoal/95 px-4 py-2.5 backdrop-blur-xl safe-top sm:py-3">
-          <div className="mx-auto flex max-w-6xl items-center gap-2.5 sm:gap-3">
-            <div className="shrink-0">
-              {storeSettings.logo_url ? (
-                <StoreLogo logoUrl={storeSettings.logo_url} name={storeName} size="sm" />
-              ) : (
-                <KabanasLogo variant="mark" size="sm" />
-              )}
-            </div>
-            <div className="relative min-w-0 flex-1">
-              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-brand-300">⌕</span>
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar no cardápio…"
-                className="w-full min-w-0 rounded-xl border border-white/10 bg-white/10 py-2.5 pl-9 pr-3.5 text-sm text-white placeholder:text-neutral-400 outline-none transition-colors focus:border-brand-400 focus:bg-white/15"
-              />
-            </div>
-            {headerLink && (
-              <Link
-                href={headerLink.href}
-                className="shrink-0 rounded-xl border border-white/20 px-3 py-2.5 text-xs font-bold text-white transition-colors hover:border-brand-400 hover:bg-brand-400 hover:text-neutral-950"
-              >
-                {headerLink.label}
-              </Link>
+      <div ref={navigationRef} className="sticky top-0 z-30 border-b border-white/[0.08] bg-surface/95 shadow-lg backdrop-blur-xl">
+        <header className="mx-auto flex max-w-6xl items-center gap-3 px-4 pb-1 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] sm:px-8 sm:pt-4">
+          <div className="hidden shrink-0 sm:block">
+            {storeSettings.logo_url ? <StoreLogo logoUrl={storeSettings.logo_url} name={storeName} size="sm" /> : <KabanasLogo variant="mark" size="sm" />}
+          </div>
+          <div className="relative min-w-0 flex-1">
+            <Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" aria-hidden="true" />
+            <input
+              ref={searchRef}
+              type="search"
+              aria-label="Buscar no cardápio"
+              value={search}
+              onChange={(event) => { setSearch(event.target.value); showResults(); }}
+              placeholder="O que você quer hoje?"
+              className="h-12 w-full min-w-0 rounded-xl border border-white/10 bg-white/5 pl-11 pr-12 text-base text-white outline-none transition-colors placeholder:text-neutral-500 focus:border-brand-400 focus:ring-2 focus:ring-brand-400/10 [&::-webkit-search-cancel-button]:appearance-none"
+            />
+            {search && (
+              <button type="button" onClick={() => { setSearch(''); searchRef.current?.focus(); showResults(); }} aria-label="Limpar busca" className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-lg text-neutral-400 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400">
+                <X size={18} />
+              </button>
             )}
           </div>
+          {headerLink && <Link href={headerLink.href} className="flex min-h-12 shrink-0 items-center rounded-xl border border-white/15 px-3 text-sm font-semibold text-neutral-200 hover:border-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400">{headerLink.label}</Link>}
         </header>
-
-        {!isSearching && (
-          <CategoryTabs categories={categories} activeId={activeCategory} onSelect={setActiveCategory} />
-        )}
+        <CategoryTabs categories={categories} activeId={isSearching ? null : activeCategory} onSelect={selectCategory} />
       </div>
 
-      <main className="mx-auto max-w-6xl px-4 py-5 sm:px-8 sm:py-7">
-        <div className="mb-4 flex items-end justify-between gap-4 sm:mb-5">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-300">Escolha seu momento</p>
-            <h2 className="mt-1 font-serif text-xl font-bold leading-none text-ink sm:text-2xl">
-              {isSearching ? 'Resultados' : showGrouped ? 'Cardápio completo' : 'No cardápio'}
-            </h2>
+      <main ref={mainRef} style={{ scrollMarginTop: navigationHeight + 8 }} className="mx-auto max-w-6xl px-4 py-6 sm:px-8 sm:py-8">
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">{heading}</h2>
+            <p className="mt-1 text-xs leading-relaxed text-neutral-400 sm:text-sm">{isSearching ? `Buscando por “${search.trim()}”` : 'Toque em um item para ver os detalhes.'}</p>
           </div>
-          <p className="shrink-0 pb-0.5 text-xs font-medium text-neutral-500">{filtered.length} opções</p>
+          <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-neutral-400" role="status">{filtered.length} {filtered.length === 1 ? 'item' : 'itens'}</span>
         </div>
 
         {filtered.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border py-12 text-center text-sm text-neutral-500">
-            Nenhum produto encontrado.
-          </p>
+          <div className="flex flex-col items-center rounded-2xl border border-dashed border-border px-5 py-12 text-center">
+            <SearchX size={32} className="mb-4 text-neutral-500" aria-hidden="true" />
+            <p className="text-base font-semibold text-ink">Nenhum item encontrado</p>
+            <p className="mt-2 text-sm text-neutral-400">Tente outro nome ou explore as categorias.</p>
+            <button type="button" onClick={() => selectCategory(null)} className="mt-5 min-h-11 rounded-xl bg-brand-400 px-5 text-sm font-semibold text-neutral-950">Ver cardápio completo</button>
+          </div>
         ) : showGrouped ? (
-          <div className="space-y-7 sm:space-y-8">
-            {grouped.map(({ category, products: catProducts }) => (
-              <section key={category.id}>
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <h3 className="font-serif text-lg font-bold text-ink sm:text-xl">{category.name}</h3>
-                  <button
-                    type="button"
-                    onClick={() => setActiveCategory(category.id)}
-                    className="min-h-10 shrink-0 px-1 text-xs font-bold uppercase tracking-wide text-brand-300 hover:underline"
-                  >
-                    Ver todos
-                  </button>
+          <div className="space-y-8 sm:space-y-10">
+            {grouped.map((group) => (
+              <section
+                key={group.id}
+                ref={(element) => {
+                  if (element) sectionRefs.current.set(group.id, element);
+                  else sectionRefs.current.delete(group.id);
+                }}
+                style={{ scrollMarginTop: navigationHeight + 16 }}
+                aria-labelledby={`category-${group.id}`}
+              >
+                <div className="mb-3 flex items-center gap-3">
+                  <h3 id={`category-${group.id}`} className="text-base font-semibold text-ink sm:text-lg">{group.name}</h3>
+                  <span className="text-xs tabular-nums text-neutral-500">{group.products.length}</span>
+                  <div className="h-px flex-1 bg-white/[0.08]" aria-hidden="true" />
                 </div>
-                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory -mr-4 pr-4 sm:mr-0 sm:gap-3.5 sm:pr-0">
-                  {catProducts.map((product, index) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      onSelect={setSelectedProduct}
-                      index={index}
-                      variant="carousel"
-                      orderingEnabled={orderingEnabled}
-                    />
-                  ))}
-                </div>
+                {group.description && <p className="mb-3 text-sm text-neutral-400">{group.description}</p>}
+                {renderProducts(group.products)}
               </section>
             ))}
-
-            {uncategorized.length > 0 && (
-              <section>
-                <h3 className="mb-3 font-serif text-lg font-bold text-ink sm:text-xl">Outros</h3>
-                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory -mr-4 pr-4 sm:mr-0 sm:gap-3.5 sm:pr-0">
-                  {uncategorized.map((product, index) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      onSelect={setSelectedProduct}
-                      index={index}
-                      variant="carousel"
-                      orderingEnabled={orderingEnabled}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-3.5 lg:grid-cols-3">
-            {filtered.map((product, index) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onSelect={setSelectedProduct}
-                index={index}
-                orderingEnabled={orderingEnabled}
-              />
-            ))}
-          </div>
-        )}
+        ) : renderProducts(filtered)}
       </main>
 
-      {selectedProduct && (
-        <ProductModal
-          product={selectedProduct}
-          orderingEnabled={orderingEnabled}
-          onClose={() => setSelectedProduct(null)}
-        />
-      )}
-
+      {selectedProduct && <ProductModal key={selectedProduct.id} product={selectedProduct} orderingEnabled={orderingEnabled} onClose={() => setSelectedProduct(null)} />}
       {orderingEnabled && (cart ?? <FloatingCart storeSettings={storeSettings} />)}
       <InstallPWAPrompt storeName={storeSettings.name} logoUrl={storeSettings.logo_url} />
     </div>
