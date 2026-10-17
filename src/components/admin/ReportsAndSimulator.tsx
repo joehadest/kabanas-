@@ -33,7 +33,7 @@ import { ReportPrintDocument } from '@/components/admin/ReportPrintDocument';
 import { cn } from '@/lib/utils';
 import { BRAND } from '@/lib/brand';
 
-type Period = '7d' | '30d' | 'month' | 'year' | 'all';
+type Period = 'day' | '7d' | '30d' | 'month' | 'year' | 'all';
 
 interface Sale {
   id?: string;
@@ -67,6 +67,7 @@ interface Props {
 }
 
 const PERIOD_OPTIONS: { id: Period; label: string }[] = [
+  { id: 'day', label: 'Dia' },
   { id: '7d', label: '7 dias' },
   { id: '30d', label: '30 dias' },
   { id: 'month', label: 'Este mês' },
@@ -85,6 +86,31 @@ function categoryName(expense: Expense): string {
 
 function expenseDate(expense: Expense): Date {
   return new Date(expense.paid_at || `${expense.due_date}T12:00:00`);
+}
+
+function dateInputValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function selectedDayStart(selectedDate: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) return null;
+
+  const start = new Date(`${selectedDate}T00:00:00`);
+  return Number.isNaN(start.getTime()) || dateInputValue(start) !== selectedDate ? null : start;
+}
+
+function isDateInSelectedDay(date: Date, selectedDate: string): boolean {
+  if (!selectedDate) return false;
+
+  const start = selectedDayStart(selectedDate);
+  if (!start) return false;
+
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  return date >= start && date < end;
 }
 
 function periodStart(period: Period): Date | null {
@@ -110,13 +136,32 @@ function periodStart(period: Period): Date | null {
   }
 }
 
-function filterByPeriod<T>(items: T[], getDate: (item: T) => Date, period: Period): T[] {
+function filterByPeriod<T>(
+  items: T[],
+  getDate: (item: T) => Date,
+  period: Period,
+  selectedDate: string
+): T[] {
+  if (period === 'day') {
+    return items.filter((item) => isDateInSelectedDay(getDate(item), selectedDate));
+  }
+
   const start = periodStart(period);
   if (!start) return items;
   return items.filter((item) => getDate(item) >= start);
 }
 
-function filterPaidExpensesInPeriod(expenses: Expense[], period: Period): Expense[] {
+function filterPaidExpensesInPeriod(
+  expenses: Expense[],
+  period: Period,
+  selectedDate: string
+): Expense[] {
+  if (period === 'day') {
+    return expenses.filter(
+      (expense) => expense.paid_at && isDateInSelectedDay(new Date(expense.paid_at), selectedDate)
+    );
+  }
+
   const start = periodStart(period);
   return expenses.filter((expense) => {
     if (!expense.paid_at) return false;
@@ -125,7 +170,12 @@ function filterPaidExpensesInPeriod(expenses: Expense[], period: Period): Expens
   });
 }
 
-function periodLabel(period: Period): string {
+function periodLabel(period: Period, selectedDate: string): string {
+  if (period === 'day') {
+    const date = selectedDayStart(selectedDate);
+    return date ? `Dia ${date.toLocaleDateString('pt-BR')}` : 'Dia selecionado';
+  }
+
   return PERIOD_OPTIONS.find((option) => option.id === period)?.label ?? 'Período';
 }
 
@@ -158,6 +208,7 @@ function DreRow({
 
 function exportReportCsv(params: {
   period: Period;
+  selectedDate: string;
   sales: Sale[];
   expenses: Expense[];
   dre: {
@@ -170,10 +221,10 @@ function exportReportCsv(params: {
     netProfit: number;
   };
 }) {
-  const { period, sales, expenses, dre } = params;
+  const { period, selectedDate, sales, expenses, dre } = params;
   const lines = [
     'Relatório financeiro Kabanas',
-    `Período,${periodLabel(period)}`,
+    `Período,${periodLabel(period, selectedDate)}`,
     `Gerado em,${new Date().toLocaleString('pt-BR')}`,
     '',
     'DRE simplificada',
@@ -204,7 +255,7 @@ function exportReportCsv(params: {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `relatorio-kabanas-${period}.csv`;
+  link.download = `relatorio-kabanas-${period === 'day' ? selectedDate : period}.csv`;
   link.click();
   URL.revokeObjectURL(url);
 }
@@ -218,24 +269,25 @@ export function ReportsAndSimulator({
 }: Props) {
   const { toast, showToast, clearToast } = useFloatingToast();
   const [period, setPeriod] = useState<Period>('30d');
+  const [selectedDate, setSelectedDate] = useState(() => dateInputValue(new Date()));
   const [price, setPrice] = useState('100');
   const [cost, setCost] = useState('40');
   const [tax, setTax] = useState(String(defaultTaxRate || 6));
   const [fee, setFee] = useState(payments[0]?.fee_rate.toString() || '0');
 
   const filteredSales = useMemo(
-    () => filterByPeriod(sales, (sale) => new Date(sale.occurred_at), period),
-    [sales, period]
+    () => filterByPeriod(sales, (sale) => new Date(sale.occurred_at), period, selectedDate),
+    [sales, period, selectedDate]
   );
 
   const filteredExpenses = useMemo(
-    () => filterByPeriod(expenses, expenseDate, period),
-    [expenses, period]
+    () => filterByPeriod(expenses, expenseDate, period, selectedDate),
+    [expenses, period, selectedDate]
   );
 
   const paidExpenses = useMemo(
-    () => filterPaidExpensesInPeriod(expenses, period),
-    [expenses, period]
+    () => filterPaidExpensesInPeriod(expenses, period, selectedDate),
+    [expenses, period, selectedDate]
   );
 
   const metrics = useMemo(() => {
@@ -263,6 +315,17 @@ export function ReportsAndSimulator({
 
   const chartData = useMemo(() => {
     if (!filteredSales.length) return [];
+
+    if (period === 'day') {
+      const date = new Date(`${selectedDate}T00:00:00`);
+      return [
+        {
+          label: date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+          faturamento: filteredSales.reduce((sum, sale) => sum + Number(sale.total_amount), 0),
+          lucro: filteredSales.reduce((sum, sale) => sum + Number(sale.net_profit), 0),
+        },
+      ];
+    }
 
     if (period === 'year' || period === 'all') {
       const buckets = new Map<string, { label: string; faturamento: number; lucro: number }>();
@@ -298,7 +361,7 @@ export function ReportsAndSimulator({
         lucro: daySales.reduce((sum, sale) => sum + Number(sale.net_profit), 0),
       };
     });
-  }, [filteredSales, period]);
+  }, [filteredSales, period, selectedDate]);
 
   const expensesByCategory = useMemo(() => {
     const map = new Map<string, number>();
@@ -347,10 +410,13 @@ export function ReportsAndSimulator({
   );
 
   const hasData = filteredSales.length > 0 || filteredExpenses.length > 0 || paidExpenses.length > 0;
+  const isInvalidDay = period === 'day' && !selectedDayStart(selectedDate);
 
   const handleExportCsv = () => {
+    if (isInvalidDay) return;
     exportReportCsv({
       period,
+      selectedDate,
       sales: filteredSales,
       expenses: paidExpenses,
       dre: metrics,
@@ -359,6 +425,7 @@ export function ReportsAndSimulator({
   };
 
   const handleExportPdf = () => {
+    if (isInvalidDay || !hasData) return;
     window.print();
   };
 
@@ -393,11 +460,11 @@ export function ReportsAndSimulator({
         description="DRE do período, evolução de faturamento e simulação de margem por forma de pagamento."
         action={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="md" onClick={handleExportCsv}>
+            <Button variant="outline" size="md" onClick={handleExportCsv} disabled={isInvalidDay}>
               <Download size={16} />
               Exportar CSV
             </Button>
-            <Button variant="primary" size="md" onClick={handleExportPdf} disabled={!hasData}>
+            <Button variant="primary" size="md" onClick={handleExportPdf} disabled={isInvalidDay || !hasData}>
               <FileText size={16} />
               Exportar PDF
             </Button>
@@ -422,11 +489,36 @@ export function ReportsAndSimulator({
           </button>
         ))}
       </div>
+      {period === 'day' && (
+        <FieldGroup label="Selecionar dia" className="mt-4 max-w-xs">
+          <Input
+            type="date"
+            value={selectedDate}
+            onChange={(event) => setSelectedDate(event.target.value)}
+            aria-label="Selecionar dia do relatório"
+            aria-invalid={isInvalidDay}
+            aria-describedby={isInvalidDay ? 'report-day-error' : undefined}
+          />
+          {isInvalidDay && (
+            <p id="report-day-error" role="alert" className="mt-2 text-sm text-red-400">
+              Selecione uma data válida para visualizar e exportar o relatório.
+            </p>
+          )}
+        </FieldGroup>
+      )}
 
-      {!hasData ? (
+      {isInvalidDay ? (
+        <Panel className="mt-8">
+          <EmptyState message="Selecione uma data válida para consultar o relatório diário." />
+        </Panel>
+      ) : !hasData ? (
         <Panel className="mt-8">
           <EmptyState
-            message={`Nenhuma venda ou despesa encontrada em ${periodLabel(period).toLowerCase()}.`}
+            message={
+              period === 'day'
+                ? `Nenhuma venda ou despesa encontrada no dia ${periodLabel(period, selectedDate).replace(/^Dia /, '')}.`
+                : `Nenhuma venda ou despesa encontrada em ${periodLabel(period, selectedDate).toLowerCase()}.`
+            }
             action={{ label: 'Abrir mesa', href: '/admin/pdv' }}
           />
         </Panel>
@@ -470,7 +562,7 @@ export function ReportsAndSimulator({
           </div>
 
           <div className="mt-6 grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-            <Panel eyebrow="Evolução" title={`Faturamento x lucro · ${periodLabel(period)}`}>
+            <Panel eyebrow="Evolução" title={`Faturamento x lucro · ${periodLabel(period, selectedDate)}`}>
               <div className="h-72 w-full min-w-0">
                 {chartData.some((point) => point.faturamento > 0 || point.lucro > 0) ? (
                   <ResponsiveContainer width="100%" height="100%">
@@ -754,7 +846,7 @@ export function ReportsAndSimulator({
       {hasData && (
         <ReportPrintDocument
           storeName={storeName || BRAND.name}
-          periodLabel={periodLabel(period)}
+          periodLabel={periodLabel(period, selectedDate)}
           metrics={metrics}
           expensesByCategory={expensesByCategory}
           sales={printSales}
