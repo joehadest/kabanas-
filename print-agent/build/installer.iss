@@ -2,7 +2,7 @@
 ; https://jrsoftware.org/isdl.php
 
 #define MyAppName "Kabanas Impressão"
-#define MyAppVersion "1.1.1"
+#define MyAppVersion "1.1.2"
 #define MyAppPublisher "Kabanas Beer"
 #define MyAppExeName "Kabanas Impressao.exe"
 

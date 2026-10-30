@@ -1,11 +1,12 @@
 {
   "name": "kabanas-print-agent",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "private": true,
   "description": "Kabanas Impressão — agente local com instalador Windows",
   "author": "Kabanas Beer",
   "main": "electron/main.cjs",
   "scripts": {
+    "test": "node --test tests/agent.test.cjs",
     "start": "electron .",
     "start:cli": "node src/index.mjs",
     "icons": "node scripts/generate-icons.mjs",

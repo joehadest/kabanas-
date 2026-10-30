@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Ellipsis, X, LayoutGrid } from 'lucide-react';
 import { Dock } from '@/components/ui/dock-two';
 import { cn } from '@/lib/utils';
@@ -32,7 +33,6 @@ interface Props {
 
 export function MobileAdminDock({ role }: Props) {
   const pathname = usePathname();
-  const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
   const [overlayOpen, setOverlayOpen] = useState(false);
   const waiter = isWaiterRole(role);
@@ -61,10 +61,10 @@ export function MobileAdminDock({ role }: Props) {
     ...primaryLinks.map((link) => ({
       icon: link.icon,
       label: link.shortLabel,
+      href: link.href,
       isActive: isActive(link.href),
       onClick: () => {
         setMoreOpen(false);
-        router.push(link.href);
       },
     })),
     ...(!waiter
@@ -106,12 +106,12 @@ export function MobileAdminDock({ role }: Props) {
                 const Icon = link.icon;
                 const active = isActive(link.href);
                 return (
-                  <button
+                  <Link
                     key={link.href}
-                    type="button"
+                    href={link.href}
+                    aria-current={active ? 'page' : undefined}
                     onClick={() => {
                       setMoreOpen(false);
-                      router.push(link.href);
                     }}
                     className={
                       active
@@ -121,7 +121,7 @@ export function MobileAdminDock({ role }: Props) {
                   >
                     <Icon className="h-5 w-5" />
                     <span className="text-center text-[10px] font-bold leading-tight">{link.shortLabel}</span>
-                  </button>
+                  </Link>
                 );
               })}
             </div>

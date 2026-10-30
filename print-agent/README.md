@@ -19,7 +19,7 @@ npm run dist
 Arquivo para o cliente:
 
 ```
-print-agent/dist/KabanasImpressao-Setup-1.0.0.exe
+print-agent/dist/KabanasImpressao-Setup-1.1.2.exe
 ```
 
 ### Alternativa sem Inno Setup (portátil)
@@ -30,7 +30,7 @@ Se ainda não tiver o Inno Setup instalado:
 npm run dist:portable
 ```
 
-Gera `dist/Kabanas Impressao 1.0.0.exe` — o cliente só dá duplo clique (não instala no Painel de Controle, mas funciona).
+Gera `dist/Kabanas Impressao 1.1.2.exe` — o cliente só dá duplo clique (não instala no Painel de Controle, mas funciona).
 
 ### Testar durante o desenvolvimento
 
@@ -38,9 +38,17 @@ Gera `dist/Kabanas Impressao 1.0.0.exe` — o cliente só dá duplo clique (não
 npm start
 ```
 
+Para validar a fila sem acionar impressoras físicas, execute `npm test`.
+
+### Atualização 1.1.2
+
+O agente guarda avisos de novos pedidos recebidos durante uma busca ou impressão e consulta o próximo lote assim que termina o anterior. O intervalo de consulta configurado continua sendo usado quando a fila está vazia ou há uma falha, sem aumentar a frequência de consultas enquanto o caixa está ocioso.
+
+Para aplicar essa correção no caixa, instale a versão atualizada do aplicativo. Publicar apenas o site não atualiza o programa já instalado no Windows.
+
 ## Para o cliente — instalar no caixa
 
-1. Baixe `KabanasImpressao-Setup-1.0.0.exe`
+1. Baixe `KabanasImpressao-Setup-1.1.2.exe`
 2. Duplo clique → **Avançar** → **Instalar** → **Concluir**
 3. Na primeira abertura, siga o assistente em 3 passos:
    - Boas-vindas

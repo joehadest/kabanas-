@@ -9,6 +9,7 @@ import { ProductCard } from './ProductCard';
 import { ProductModal } from './ProductModal';
 import { FloatingCart } from './FloatingCart';
 import { InstallPWAPrompt } from './InstallPWAPrompt';
+import { ShareMenuButton } from './ShareMenuButton';
 import { KabanasLogo } from '@/components/shared/KabanasLogo';
 import { StoreLogo } from '@/components/shared/StoreLogo';
 import type { Category, Product, StoreSettings } from '@/lib/types/database';
@@ -147,6 +148,7 @@ export function CatalogView({
               </button>
             )}
           </div>
+          <ShareMenuButton storeName={storeName} storeSlug={storeSettings.slug} />
           {headerLink && <Link href={headerLink.href} className="flex min-h-12 shrink-0 items-center rounded-xl border border-white/15 px-3 text-sm font-semibold text-neutral-200 hover:border-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400">{headerLink.label}</Link>}
         </header>
         <CategoryTabs categories={categories} activeId={isSearching ? null : activeCategory} onSelect={selectCategory} />

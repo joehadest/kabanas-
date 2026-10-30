@@ -56,13 +56,12 @@ async function fetchDiningTables(supabase: Awaited<ReturnType<typeof createClien
 }
 
 export default async function PDVPage() {
-  const store = await getActiveStore();
-  if (!store) return <p className="p-6">Empresa não configurada.</p>;
-
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [store, { data: { user } }] = await Promise.all([
+    getActiveStore(),
+    supabase.auth.getUser(),
+  ]);
+  if (!store) return <p className="p-6">Empresa não configurada.</p>;
 
   const { data: profile } = user
     ? await supabase.from('profiles').select('role').eq('id', user.id).single()

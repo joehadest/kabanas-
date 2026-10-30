@@ -5,11 +5,11 @@ import { CashRegisterNormal } from '@/components/admin/CashRegisterNormal';
 export const revalidate = 0;
 
 export default async function CaixaPage() {
-  const store = await getActiveStore();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [store, { data: { user } }] = await Promise.all([
+    getActiveStore(),
+    supabase.auth.getUser(),
+  ]);
 
   if (!store || !user) {
     return <p className="p-6">Empresa ou usuário não configurado.</p>;

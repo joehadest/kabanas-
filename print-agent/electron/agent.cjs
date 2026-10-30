@@ -10,6 +10,9 @@ class PrintAgent extends EventEmitter {
     this.server = null;
     this.pollTimer = null;
     this.polling = false;
+    this.pollPromise = null;
+    this.pollRequested = false;
+    this.running = false;
     this.stats = {
       printedToday: 0,
       lastPollAt: null,
@@ -65,11 +68,14 @@ class PrintAgent extends EventEmitter {
       this.server.listen(port, '127.0.0.1', resolve);
     });
 
+    this.running = true;
     this.schedulePoll(500);
     this.emit('status', this.getStatus());
   }
 
   async stop() {
+    this.running = false;
+    this.pollRequested = false;
     if (this.pollTimer) {
       clearTimeout(this.pollTimer);
       this.pollTimer = null;
@@ -78,6 +84,8 @@ class PrintAgent extends EventEmitter {
       await new Promise((resolve) => this.server.close(() => resolve()));
       this.server = null;
     }
+    // Finish an already-started print before restarting with another config.
+    if (this.pollPromise) await this.pollPromise;
     this.stats.online = false;
     this.emit('status', this.getStatus());
   }
@@ -131,34 +139,59 @@ class PrintAgent extends EventEmitter {
     }
   }
 
-  async pollOnce() {
-    if (this.polling || !this.config) return;
+  pollOnce() {
+    if (!this.running || !this.config) return Promise.resolve();
+    if (this.pollPromise) {
+      // A /wake received during a fetch or print must not be discarded.
+      this.pollRequested = true;
+      return this.pollPromise;
+    }
+    if (this.pollTimer) {
+      clearTimeout(this.pollTimer);
+      this.pollTimer = null;
+    }
     this.polling = true;
+    this.pollPromise = this.drainQueue().finally(() => {
+      this.polling = false;
+      this.pollPromise = null;
+      this.emit('status', this.getStatus());
+      if (this.running) this.schedulePoll();
+    });
+    return this.pollPromise;
+  }
+
+  async drainQueue() {
     try {
-      const { jobs } = await this.api(
-        `/api/print-agent/jobs?store_id=${encodeURIComponent(this.config.storeId)}&limit=5`
-      );
-      this.stats.lastPollAt = new Date().toISOString();
-      this.stats.online = true;
-      this.stats.lastError = null;
-      for (const job of jobs || []) {
-        await this.processJob(job);
-      }
+      let hasJobs;
+      do {
+        this.pollRequested = false;
+        const { jobs } = await this.api(
+          `/api/print-agent/jobs?store_id=${encodeURIComponent(this.config.storeId)}&limit=5`
+        );
+        this.stats.lastPollAt = new Date().toISOString();
+        this.stats.online = true;
+        this.stats.lastError = null;
+        hasJobs = Boolean(jobs?.length);
+        for (const job of jobs || []) {
+          if (!this.running) break;
+          await this.processJob(job);
+        }
+        // Check again immediately after printing, including the next batch.
+        // Keep the normal idle interval once the queue is empty.
+      } while (this.running && (hasJobs || this.pollRequested));
     } catch (error) {
       this.stats.online = false;
       this.stats.lastError = String(error.message || error);
-    } finally {
-      this.polling = false;
-      this.emit('status', this.getStatus());
     }
   }
 
   schedulePoll(delay) {
     if (this.pollTimer) clearTimeout(this.pollTimer);
+    if (!this.running) return;
     const interval = delay ?? this.config?.pollIntervalMs ?? 4000;
-    this.pollTimer = setTimeout(async () => {
-      await this.pollOnce();
-      this.schedulePoll();
+    this.pollTimer = setTimeout(() => {
+      this.pollTimer = null;
+      void this.pollOnce();
     }, interval);
   }
 }

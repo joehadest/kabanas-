@@ -5,6 +5,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
+const { version } = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const unpacked = path.join(root, 'dist', 'win-unpacked');
 
 if (!fs.existsSync(unpacked)) {
@@ -23,11 +24,11 @@ const iscc = isccCandidates.find((candidate) => fs.existsSync(candidate));
 if (!iscc) {
   console.error('Inno Setup 6 não encontrado.');
   console.error('Instale em https://jrsoftware.org/isdl.php e rode de novo: npm run dist:installer');
-  console.error('Alternativa imediata: use dist\\Kabanas Impressao 1.0.0.exe (portátil, sem instalação).');
+  console.error(`Alternativa imediata: gere a versão portátil com npm run dist:portable (versão ${version}).`);
   process.exit(1);
 }
 
 const iss = path.join(root, 'build', 'installer.iss');
 console.log('Compilando instalador com Inno Setup...');
 execFileSync(iscc, [iss], { stdio: 'inherit', cwd: path.join(root, 'build') });
-console.log('Pronto: dist/KabanasImpressao-Setup-1.0.0.exe');
+console.log(`Pronto: dist/KabanasImpressao-Setup-${version}.exe`);
