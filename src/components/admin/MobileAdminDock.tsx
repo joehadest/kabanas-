@@ -20,6 +20,7 @@ const ALL_LINKS = [
   { href: '/admin/mesas', label: 'Mesas', shortLabel: 'Mesas', icon: LayoutGrid },
   { href: '/admin/inventario', label: 'Inventário', shortLabel: 'Estoque', icon: IconStock },
   { href: '/admin/despesas', label: 'Despesas', shortLabel: 'Despesas', icon: IconStock },
+  { href: '/admin/cotacao', label: 'Cotação', shortLabel: 'Cotação', icon: IconStock },
   { href: '/admin/relatorios', label: 'Relatórios', shortLabel: 'Relatórios', icon: IconClock },
   { href: '/admin/impressao', label: 'Impressão', shortLabel: 'Imprimir', icon: IconSettings },
   { href: '/admin/configuracoes', label: 'Taxas e ajustes', shortLabel: 'Ajustes', icon: IconSettings },
