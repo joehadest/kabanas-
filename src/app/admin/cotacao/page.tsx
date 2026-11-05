@@ -28,7 +28,7 @@ export default async function CotacaoPage() {
       quotes = await fetchAllRows<Quote>((from, to) =>
         supabase
           .from('purchase_quotes')
-          .select('id,item_id,supplier_id,price,quoted_at,purchase_items!inner(store_id)', { count: 'exact' })
+          .select('id,item_id,supplier_id,price,quantity,quoted_at,purchase_items!inner(store_id)', { count: 'exact' })
           .eq('purchase_items.store_id', store.id)
           .order('quoted_at', { ascending: false })
           .range(from, to)
@@ -45,7 +45,7 @@ export default async function CotacaoPage() {
         <p className="text-sm font-semibold text-red-400">Não foi possível carregar a cotação.</p>
         <p className="mt-2 text-sm text-neutral-400">{errorMessage}</p>
         <p className="mt-2 text-xs text-neutral-500">
-          Execute <code>supabase/migration_supplier_quotes.sql</code> e atualize a página.
+          Execute <code>supabase/migration_supplier_quotes.sql</code> e <code>supabase/migration_supplier_quotes_quantity.sql</code>, depois atualize a página.
         </p>
       </div>
     );
@@ -57,7 +57,14 @@ export default async function CotacaoPage() {
       operatorId={user.id}
       suppliers={suppliers ?? []}
       items={items ?? []}
-      quotes={quotes.map(({ id, item_id, supplier_id, price, quoted_at }) => ({ id, item_id, supplier_id, price: Number(price), quoted_at }))}
+      quotes={quotes.map(({ id, item_id, supplier_id, price, quantity, quoted_at }) => ({
+        id,
+        item_id,
+        supplier_id,
+        price: Number(price),
+        quantity: quantity === null ? null : Number(quantity),
+        quoted_at,
+      }))}
     />
   );
 }

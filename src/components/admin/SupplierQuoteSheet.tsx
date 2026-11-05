@@ -13,11 +13,27 @@ import { PageContainer, PageHeader, Panel } from '@/components/ui/page-layout';
 
 type Supplier = { id: string; name: string; phone: string | null };
 type Item = { id: string; name: string; unit: string };
-export type Quote = { id: string; item_id: string; supplier_id: string; price: number; quoted_at: string };
+export type Quote = {
+  id: string;
+  item_id: string;
+  supplier_id: string;
+  price: number;
+  quantity: number | null;
+  quoted_at: string;
+};
 
-type Latest = { price: number; quotedAt: string; previous: number | null };
+type Latest = { price: number; quantity: number | null; quotedAt: string; previous: number | null };
 type Entry = Latest & { supplier: Supplier };
-type PriceForm = { product: string; unit: string; supplier: string; price: string };
+/** priceMode "total": a pessoa digita o total da nota e o preço por unidade é calculado pela quantidade. */
+type PriceForm = {
+  product: string;
+  unit: string;
+  supplier: string;
+  priceMode: 'unit' | 'total';
+  price: string;
+  total: string;
+  quantity: string;
+};
 type PendingDelete = { kind: 'item'; target: Item } | { kind: 'supplier'; target: Supplier };
 
 interface Props {
@@ -29,21 +45,28 @@ interface Props {
 }
 
 const units = [
-  { value: 'kg', label: 'Quilo', short: 'kg' },
-  { value: 'un', label: 'Unidade', short: 'unidade' },
-  { value: 'cx', label: 'Caixa', short: 'caixa' },
-  { value: 'pct', label: 'Pacote', short: 'pacote' },
-  { value: 'dz', label: 'Dúzia', short: 'dúzia' },
-  { value: 'fardo', label: 'Fardo', short: 'fardo' },
-  { value: 'L', label: 'Litro', short: 'litro' },
-  { value: 'g', label: 'Grama', short: 'g' },
-  { value: 'ml', label: 'ml', short: 'ml' },
+  { value: 'kg', label: 'Quilo', short: 'kg', plural: 'kg' },
+  { value: 'un', label: 'Unidade', short: 'unidade', plural: 'unidades' },
+  { value: 'cx', label: 'Caixa', short: 'caixa', plural: 'caixas' },
+  { value: 'pct', label: 'Pacote', short: 'pacote', plural: 'pacotes' },
+  { value: 'dz', label: 'Dúzia', short: 'dúzia', plural: 'dúzias' },
+  { value: 'fardo', label: 'Fardo', short: 'fardo', plural: 'fardos' },
+  { value: 'L', label: 'Litro', short: 'litro', plural: 'litros' },
+  { value: 'g', label: 'Grama', short: 'g', plural: 'g' },
+  { value: 'ml', label: 'ml', short: 'ml', plural: 'ml' },
 ];
 /** Preço com mais de uma semana aparece em alerta para lembrar de confirmar com o fornecedor. */
 const STALE_DAYS = 7;
-const emptyForm: PriceForm = { product: '', unit: 'kg', supplier: '', price: '' };
+const emptyForm: PriceForm = { product: '', unit: 'kg', supplier: '', priceMode: 'unit', price: '', total: '', quantity: '' };
 
 const unitShort = (unit: string) => units.find((entry) => entry.value === unit)?.short ?? unit;
+const parseMoney = (value: string) => parseDecimal(value.replace(/[^\d.,]/g, ''));
+
+function formatQuantity(quantity: number, unit: string) {
+  const entry = units.find((item) => item.value === unit);
+  const label = quantity === 1 ? (entry?.short ?? unit) : (entry?.plural ?? unit);
+  return `${quantity.toLocaleString('pt-BR', { maximumFractionDigits: 3 })} ${label}`;
+}
 const byName = <T extends { name: string }>(a: T, b: T) => a.name.localeCompare(b.name, 'pt-BR');
 /** Compara nomes sem acento e sem maiúscula: "atacadao" encontra "Atacadão". */
 const normalize = (value: string) =>
@@ -102,7 +125,9 @@ export function SupplierQuoteSheet({ storeId, operatorId, suppliers: initialSupp
       const bySupplier = map.get(quote.item_id) ?? new Map<string, Latest>();
       map.set(quote.item_id, bySupplier);
       const current = bySupplier.get(quote.supplier_id);
-      if (!current) bySupplier.set(quote.supplier_id, { price: quote.price, quotedAt: quote.quoted_at, previous: null });
+      if (!current) {
+        bySupplier.set(quote.supplier_id, { price: quote.price, quantity: quote.quantity, quotedAt: quote.quoted_at, previous: null });
+      }
       else if (current.previous === null) current.previous = quote.price;
     }
     return map;
@@ -134,6 +159,18 @@ export function SupplierQuoteSheet({ storeId, operatorId, suppliers: initialSupp
     ? suppliers.filter((supplier) => normalize(supplier.name).includes(normalize(form.supplier))).slice(0, 10)
     : [];
   const formUnit = matchedItem?.unit ?? form?.unit ?? 'kg';
+  const formUnitPlural = units.find((unit) => unit.value === formUnit)?.plural ?? formUnit;
+  const formQuantity = form?.quantity.trim() ? parseDecimal(form.quantity) : NaN;
+  /** Prévia do que será salvo: total (quando digita o preço) ou preço por unidade (quando digita o total). */
+  const computed = (() => {
+    if (!form || !(formQuantity > 0)) return null;
+    if (form.priceMode === 'total') {
+      const total = parseMoney(form.total);
+      return total > 0 ? { price: Math.round((total / formQuantity) * 100) / 100, total } : null;
+    }
+    const price = parseMoney(form.price);
+    return price > 0 ? { price, total: price * formQuantity } : null;
+  })();
 
   const openForm = (prefill?: { item?: Item; supplier?: Supplier }) => {
     setFormError(null);
@@ -152,10 +189,21 @@ export function SupplierQuoteSheet({ storeId, operatorId, suppliers: initialSupp
     if (!form || saving) return;
     const productName = form.product.trim();
     const supplierName = form.supplier.trim();
-    const price = parseDecimal(form.price.replace(/[^\d.,]/g, ''));
+    const quantity = form.quantity.trim() ? parseDecimal(form.quantity) : null;
     if (!productName) return setFormError('Escreva qual é o produto.');
     if (!supplierName) return setFormError('Escreva em qual fornecedor você viu esse preço.');
-    if (!Number.isFinite(price) || price <= 0) return setFormError('Digite o preço. Exemplo: 6,90');
+    if (quantity !== null && !(quantity > 0)) return setFormError('Quantidade inválida. Exemplo: 20 ou 2,5');
+
+    let price: number;
+    if (form.priceMode === 'total') {
+      const total = parseMoney(form.total);
+      if (!(total > 0)) return setFormError('Digite o total da nota. Exemplo: 128,00');
+      if (quantity === null) return setFormError(`Digite quanto veio, para calcular o preço por ${unitShort(formUnit)}.`);
+      price = Math.round((total / quantity) * 100) / 100;
+    } else {
+      price = parseMoney(form.price);
+      if (!(price > 0)) return setFormError('Digite o preço. Exemplo: 6,90');
+    }
 
     setSaving(true);
     setFormError(null);
@@ -193,17 +241,25 @@ export function SupplierQuoteSheet({ storeId, operatorId, suppliers: initialSupp
 
     const { data, error } = await supabase
       .from('purchase_quotes')
-      .insert({ item_id: item.id, supplier_id: supplier.id, price, created_by: operatorId })
-      .select('id,item_id,supplier_id,price,quoted_at')
+      .insert({ item_id: item.id, supplier_id: supplier.id, price, quantity, created_by: operatorId })
+      .select('id,item_id,supplier_id,price,quantity,quoted_at')
       .single();
     setSaving(false);
     if (error || !data) return setFormError(error?.message || 'Não foi possível salvar o preço.');
 
-    setQuotes((list) => [{ ...(data as Quote), price: Number(data.price) }, ...list]);
-    showToast(`Preço salvo: ${item.name} · ${supplier.name} · ${formatCurrency(price)}`, 'success');
+    setQuotes((list) => [
+      { ...(data as Quote), price: Number(data.price), quantity: data.quantity === null ? null : Number(data.quantity) },
+      ...list,
+    ]);
+    showToast(
+      quantity
+        ? `Compra salva: ${formatQuantity(quantity, item.unit)} de ${item.name} · ${supplier.name}`
+        : `Preço salvo: ${item.name} · ${supplier.name} · ${formatCurrency(price)}`,
+      'success'
+    );
     if (keepOpen) {
       // Mesmo fornecedor, próximo produto: útil quando está com a nota da compra na mão.
-      setForm({ ...emptyForm, supplier: supplier.name });
+      setForm({ ...emptyForm, supplier: supplier.name, priceMode: form.priceMode });
       productInputRef.current?.focus();
     } else {
       setForm(null);
@@ -342,6 +398,7 @@ export function SupplierQuoteSheet({ storeId, operatorId, suppliers: initialSupp
                               <p className={cn('text-xs', stale ? 'text-amber-400' : 'text-neutral-500')}>
                                 {formatWhen(entry.quotedAt)}
                                 {stale && ' · confirmar preço'}
+                                {entry.quantity !== null && ` · comprou ${formatQuantity(entry.quantity, item.unit)}`}
                                 {entry.previous !== null && entry.previous !== entry.price && (
                                   <span className={entry.price > entry.previous ? 'text-red-400' : 'text-brand-300'}>
                                     {' · '}
@@ -369,6 +426,7 @@ export function SupplierQuoteSheet({ storeId, operatorId, suppliers: initialSupp
                   <p className={cn('px-4 pb-3 text-xs', daysAgo(best.quotedAt) > STALE_DAYS ? 'text-amber-400' : 'text-neutral-500')}>
                     Anotado {formatWhen(best.quotedAt)}
                     {daysAgo(best.quotedAt) > STALE_DAYS && ' · confirmar preço'}
+                    {best.quantity !== null && ` · comprou ${formatQuantity(best.quantity, item.unit)}`}
                   </p>
                 )}
 
@@ -465,21 +523,71 @@ export function SupplierQuoteSheet({ storeId, operatorId, suppliers: initialSupp
               )}
             </FieldGroup>
 
-            <FieldGroup label={`3. Quanto custa o ${unitShort(formUnit)}?`}>
+            <FieldGroup label="3. Quanto custou?">
+              <div className="mb-3 flex flex-wrap gap-2">
+                <Chip active={form.priceMode === 'unit'} onClick={() => updateForm('priceMode', 'unit')}>
+                  Preço por {unitShort(formUnit)}
+                </Chip>
+                <Chip active={form.priceMode === 'total'} onClick={() => updateForm('priceMode', 'total')}>
+                  Total da nota
+                </Chip>
+              </div>
               <div className="relative">
                 <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-neutral-500">R$</span>
-                <Input
-                  autoFocus={Boolean(form.product) && Boolean(form.supplier)}
-                  value={form.price}
-                  onChange={(e) => updateForm('price', e.target.value)}
-                  inputMode="decimal"
-                  placeholder="0,00"
-                  className="h-14 pl-12 text-2xl font-bold"
-                />
+                {form.priceMode === 'unit' ? (
+                  <Input
+                    key="price"
+                    autoFocus={Boolean(form.product) && Boolean(form.supplier)}
+                    value={form.price}
+                    onChange={(e) => updateForm('price', e.target.value)}
+                    inputMode="decimal"
+                    placeholder="0,00"
+                    aria-label={`Preço por ${unitShort(formUnit)}`}
+                    className="h-14 pl-12 text-2xl font-bold"
+                  />
+                ) : (
+                  <Input
+                    key="total"
+                    autoFocus={Boolean(form.product) && Boolean(form.supplier)}
+                    value={form.total}
+                    onChange={(e) => updateForm('total', e.target.value)}
+                    inputMode="decimal"
+                    placeholder="0,00"
+                    aria-label="Total da nota"
+                    className="h-14 pl-12 text-2xl font-bold"
+                  />
+                )}
               </div>
               {lastPriceHere && (
                 <p className="mt-2 text-xs text-neutral-400">
-                  Último preço anotado aqui: {formatCurrency(lastPriceHere.price)} ({formatWhen(lastPriceHere.quotedAt)})
+                  Último preço anotado aqui: {formatCurrency(lastPriceHere.price)} por {unitShort(formUnit)} ({formatWhen(lastPriceHere.quotedAt)})
+                </p>
+              )}
+            </FieldGroup>
+
+            <FieldGroup label={form.priceMode === 'total' ? '4. Quanto veio?' : '4. Quanto comprou? (opcional)'}>
+              <div className="relative">
+                <Input
+                  value={form.quantity}
+                  onChange={(e) => updateForm('quantity', e.target.value)}
+                  inputMode="decimal"
+                  placeholder="Ex.: 20"
+                  aria-label="Quantidade"
+                  className="pr-24"
+                />
+                <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-neutral-500">{formUnitPlural}</span>
+              </div>
+              {computed ? (
+                <p className="mt-2 text-sm font-semibold text-brand-300">
+                  {form.priceMode === 'total'
+                    ? `Sai a ${formatCurrency(computed.price)} por ${unitShort(formUnit)}`
+                    : `Total da compra: ${formatCurrency(computed.total)}`}
+                </p>
+              ) : (
+                <p className="mt-2 text-xs text-neutral-500">
+                  {form.priceMode === 'total'
+                    ? `Com a quantidade, o sistema calcula o preço por ${unitShort(formUnit)}.`
+                    : 'Deixe em branco se está só pesquisando o preço.'}
                 </p>
               )}
             </FieldGroup>
@@ -535,6 +643,11 @@ export function SupplierQuoteSheet({ storeId, operatorId, suppliers: initialSupp
                     <p className="text-xs text-neutral-500">
                       {formatWhen(quote.quoted_at)} · {new Date(quote.quoted_at).toLocaleDateString('pt-BR')}
                     </p>
+                    {quote.quantity !== null && (
+                      <p className="text-xs text-neutral-400">
+                        Comprou {formatQuantity(quote.quantity, historyItem.unit)} · total {formatCurrency(quote.price * quote.quantity)}
+                      </p>
+                    )}
                   </div>
                   <span className="font-semibold text-ink">
                     {formatCurrency(quote.price)} <span className="text-xs text-neutral-500">/{unitShort(historyItem.unit)}</span>
