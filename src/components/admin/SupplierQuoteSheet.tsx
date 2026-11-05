@@ -1,12 +1,13 @@
 'use client';
 
-import { FormEvent, KeyboardEvent, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, History, PackagePlus, Store, Trash2, Trophy } from 'lucide-react';
+import { FormEvent, useMemo, useRef, useState } from 'react';
+import { Check, History, Plus, Store, Trash2, Trophy } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { cn } from '@/lib/utils';
 import { formatCurrency, parseDecimal } from '@/lib/utils/format';
 import { Button } from '@/components/ui/button';
 import { FloatingToast, useFloatingToast } from '@/components/ui/floating-toast';
-import { FieldGroup, Input, Select } from '@/components/ui/input';
+import { FieldGroup, Input } from '@/components/ui/input';
 import { Modal, ModalAlert, ModalFooter } from '@/components/ui/modal';
 import { PageContainer, PageHeader, Panel } from '@/components/ui/page-layout';
 
@@ -14,7 +15,9 @@ type Supplier = { id: string; name: string; phone: string | null };
 type Item = { id: string; name: string; unit: string };
 export type Quote = { id: string; item_id: string; supplier_id: string; price: number; quoted_at: string };
 
-type CellInfo = { price: number; quotedAt: string; previous: number | null };
+type Latest = { price: number; quotedAt: string; previous: number | null };
+type Entry = Latest & { supplier: Supplier };
+type PriceForm = { product: string; unit: string; supplier: string; price: string };
 type PendingDelete = { kind: 'item'; target: Item } | { kind: 'supplier'; target: Supplier };
 
 interface Props {
@@ -25,19 +28,53 @@ interface Props {
   quotes: Quote[];
 }
 
-const units = ['un', 'kg', 'g', 'L', 'ml', 'cx', 'pct', 'dz', 'fardo'];
+const units = [
+  { value: 'kg', label: 'Quilo', short: 'kg' },
+  { value: 'un', label: 'Unidade', short: 'unidade' },
+  { value: 'cx', label: 'Caixa', short: 'caixa' },
+  { value: 'pct', label: 'Pacote', short: 'pacote' },
+  { value: 'dz', label: 'Dúzia', short: 'dúzia' },
+  { value: 'fardo', label: 'Fardo', short: 'fardo' },
+  { value: 'L', label: 'Litro', short: 'litro' },
+  { value: 'g', label: 'Grama', short: 'g' },
+  { value: 'ml', label: 'ml', short: 'ml' },
+];
 /** Preço com mais de uma semana aparece em alerta para lembrar de confirmar com o fornecedor. */
 const STALE_DAYS = 7;
+const emptyForm: PriceForm = { product: '', unit: 'kg', supplier: '', price: '' };
 
+const unitShort = (unit: string) => units.find((entry) => entry.value === unit)?.short ?? unit;
 const byName = <T extends { name: string }>(a: T, b: T) => a.name.localeCompare(b.name, 'pt-BR');
-const cellKey = (itemId: string, supplierId: string) => `${itemId}:${supplierId}`;
+/** Compara nomes sem acento e sem maiúscula: "atacadao" encontra "Atacadão". */
+const normalize = (value: string) =>
+  value.trim().toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[̀-ͯ]/g, '');
 
-function formatShortDate(iso: string) {
-  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+function daysAgo(iso: string) {
+  const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  return Math.round((startOfDay(new Date()) - startOfDay(new Date(iso))) / 86_400_000);
 }
 
-function isStale(iso: string) {
-  return Date.now() - new Date(iso).getTime() > STALE_DAYS * 24 * 60 * 60 * 1000;
+function formatWhen(iso: string) {
+  const days = daysAgo(iso);
+  if (days <= 0) return 'hoje';
+  if (days === 1) return 'ontem';
+  return `há ${days} dias`;
+}
+
+function Chip({ active, onClick, children }: { active?: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm transition-colors',
+        active ? 'border-brand-400 bg-brand-400/15 text-brand-200' : 'border-border text-neutral-300 hover:border-neutral-500'
+      )}
+    >
+      {active && <Check size={13} />}
+      {children}
+    </button>
+  );
 }
 
 export function SupplierQuoteSheet({ storeId, operatorId, suppliers: initialSuppliers, items: initialItems, quotes: initialQuotes }: Props) {
@@ -47,144 +84,135 @@ export function SupplierQuoteSheet({ storeId, operatorId, suppliers: initialSupp
   const [quotes, setQuotes] = useState(initialQuotes);
   const [search, setSearch] = useState('');
 
-  const [editingCell, setEditingCell] = useState<string | null>(null);
-  const [draft, setDraft] = useState('');
-  const [savingCell, setSavingCell] = useState<string | null>(null);
-
-  const [itemFormOpen, setItemFormOpen] = useState(false);
-  const [itemName, setItemName] = useState('');
-  const [itemUnit, setItemUnit] = useState('kg');
-  const [supplierFormOpen, setSupplierFormOpen] = useState(false);
-  const [supplierName, setSupplierName] = useState('');
-  const [supplierPhone, setSupplierPhone] = useState('');
+  const [form, setForm] = useState<PriceForm | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const productInputRef = useRef<HTMLInputElement>(null);
 
+  const [suppliersOpen, setSuppliersOpen] = useState(false);
   const [historyItem, setHistoryItem] = useState<Item | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  /** Último preço de cada célula (produto x fornecedor) e o anterior, para mostrar se subiu ou desceu. */
-  const cells = useMemo(() => {
-    const map = new Map<string, CellInfo>();
+  /** Último preço de cada produto em cada fornecedor, e o anterior para dizer se subiu ou baixou. */
+  const latest = useMemo(() => {
+    const map = new Map<string, Map<string, Latest>>();
     const sorted = [...quotes].sort((a, b) => b.quoted_at.localeCompare(a.quoted_at));
     for (const quote of sorted) {
-      const key = cellKey(quote.item_id, quote.supplier_id);
-      const current = map.get(key);
-      if (!current) map.set(key, { price: quote.price, quotedAt: quote.quoted_at, previous: null });
+      const bySupplier = map.get(quote.item_id) ?? new Map<string, Latest>();
+      map.set(quote.item_id, bySupplier);
+      const current = bySupplier.get(quote.supplier_id);
+      if (!current) bySupplier.set(quote.supplier_id, { price: quote.price, quotedAt: quote.quoted_at, previous: null });
       else if (current.previous === null) current.previous = quote.price;
     }
     return map;
   }, [quotes]);
 
-  const rows = useMemo(() => {
-    const term = search.trim().toLowerCase();
+  const cards = useMemo(() => {
+    const term = normalize(search);
     return items
-      .filter((item) => item.name.toLowerCase().includes(term))
+      .filter((item) => normalize(item.name).includes(term))
       .map((item) => {
-        const priced = suppliers
-          .map((supplier) => ({ supplier, cell: cells.get(cellKey(item.id, supplier.id)) }))
-          .filter((entry): entry is { supplier: Supplier; cell: CellInfo } => Boolean(entry.cell));
-        const best = priced.reduce<(typeof priced)[number] | null>((min, entry) => (!min || entry.cell.price < min.cell.price ? entry : min), null);
-        const worst = priced.reduce((max, entry) => Math.max(max, entry.cell.price), 0);
-        return { item, best, worst, pricedCount: priced.length };
+        const bySupplier = latest.get(item.id);
+        const entries: Entry[] = suppliers
+          .flatMap((supplier) => {
+            const info = bySupplier?.get(supplier.id);
+            return info ? [{ ...info, supplier }] : [];
+          })
+          .sort((a, b) => a.price - b.price);
+        return { item, entries };
       });
-  }, [items, suppliers, cells, search]);
+  }, [items, suppliers, latest, search]);
 
-  const startEdit = (itemId: string, supplierId: string) => {
-    const key = cellKey(itemId, supplierId);
-    const current = cells.get(key);
-    setEditingCell(key);
-    setDraft(current ? current.price.toFixed(2).replace('.', ',') : '');
+  const matchedItem = form ? items.find((item) => normalize(item.name) === normalize(form.product)) : undefined;
+  const matchedSupplier = form ? suppliers.find((supplier) => normalize(supplier.name) === normalize(form.supplier)) : undefined;
+  const lastPriceHere = matchedItem && matchedSupplier ? latest.get(matchedItem.id)?.get(matchedSupplier.id) : undefined;
+  const productSuggestions = form && !matchedItem
+    ? items.filter((item) => normalize(item.name).includes(normalize(form.product))).slice(0, 10)
+    : [];
+  const supplierSuggestions = form && !matchedSupplier
+    ? suppliers.filter((supplier) => normalize(supplier.name).includes(normalize(form.supplier))).slice(0, 10)
+    : [];
+  const formUnit = matchedItem?.unit ?? form?.unit ?? 'kg';
+
+  const openForm = (prefill?: { item?: Item; supplier?: Supplier }) => {
+    setFormError(null);
+    setForm({
+      ...emptyForm,
+      product: prefill?.item?.name ?? '',
+      unit: prefill?.item?.unit ?? 'kg',
+      supplier: prefill?.supplier?.name ?? '',
+    });
   };
 
-  const saveCell = async (itemId: string, supplierId: string, force: boolean) => {
-    const key = cellKey(itemId, supplierId);
-    const current = cells.get(key);
-    const initialDraft = current ? current.price.toFixed(2).replace('.', ',') : '';
-    setEditingCell(null);
-    if (!draft.trim() || (!force && draft === initialDraft)) return;
+  const updateForm = (key: keyof PriceForm, value: string) =>
+    setForm((current) => (current ? { ...current, [key]: value } : current));
 
-    const price = parseDecimal(draft);
-    if (!Number.isFinite(price) || price < 0) {
-      showToast('Preço inválido. Use algo como 7,90.', 'error');
-      return;
+  const save = async (keepOpen: boolean) => {
+    if (!form || saving) return;
+    const productName = form.product.trim();
+    const supplierName = form.supplier.trim();
+    const price = parseDecimal(form.price.replace(/[^\d.,]/g, ''));
+    if (!productName) return setFormError('Escreva qual é o produto.');
+    if (!supplierName) return setFormError('Escreva em qual fornecedor você viu esse preço.');
+    if (!Number.isFinite(price) || price <= 0) return setFormError('Digite o preço. Exemplo: 6,90');
+
+    setSaving(true);
+    setFormError(null);
+    const supabase = createClient();
+
+    let item = matchedItem;
+    if (!item) {
+      const { data, error } = await supabase
+        .from('purchase_items')
+        .insert({ store_id: storeId, name: productName, unit: form.unit })
+        .select('id,name,unit')
+        .single();
+      if (error || !data) {
+        setSaving(false);
+        return setFormError(error?.message || 'Não foi possível cadastrar o produto.');
+      }
+      item = data as Item;
+      setItems((list) => [...list, data as Item].sort(byName));
     }
 
-    setSavingCell(key);
-    const { data, error } = await createClient()
+    let supplier = matchedSupplier;
+    if (!supplier) {
+      const { data, error } = await supabase
+        .from('purchase_suppliers')
+        .insert({ store_id: storeId, name: supplierName })
+        .select('id,name,phone')
+        .single();
+      if (error || !data) {
+        setSaving(false);
+        return setFormError(error?.message || 'Não foi possível cadastrar o fornecedor.');
+      }
+      supplier = data as Supplier;
+      setSuppliers((list) => [...list, data as Supplier].sort(byName));
+    }
+
+    const { data, error } = await supabase
       .from('purchase_quotes')
-      .insert({ item_id: itemId, supplier_id: supplierId, price, created_by: operatorId })
+      .insert({ item_id: item.id, supplier_id: supplier.id, price, created_by: operatorId })
       .select('id,item_id,supplier_id,price,quoted_at')
       .single();
-    setSavingCell(null);
-    if (error || !data) {
-      showToast(error?.message || 'Não foi possível salvar o preço.', 'error');
-      return;
-    }
+    setSaving(false);
+    if (error || !data) return setFormError(error?.message || 'Não foi possível salvar o preço.');
+
     setQuotes((list) => [{ ...(data as Quote), price: Number(data.price) }, ...list]);
-  };
-
-  const handleCellKey = (event: KeyboardEvent<HTMLInputElement>, itemId: string, supplierId: string) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      void saveCell(itemId, supplierId, true);
-    } else if (event.key === 'Escape') {
-      setEditingCell(null);
+    showToast(`Preço salvo: ${item.name} · ${supplier.name} · ${formatCurrency(price)}`, 'success');
+    if (keepOpen) {
+      // Mesmo fornecedor, próximo produto: útil quando está com a nota da compra na mão.
+      setForm({ ...emptyForm, supplier: supplier.name });
+      productInputRef.current?.focus();
+    } else {
+      setForm(null);
     }
   };
 
-  const openItemForm = () => {
-    setItemName('');
-    setItemUnit('kg');
-    setFormError(null);
-    setItemFormOpen(true);
-  };
-
-  const openSupplierForm = () => {
-    setSupplierName('');
-    setSupplierPhone('');
-    setFormError(null);
-    setSupplierFormOpen(true);
-  };
-
-  const saveItem = async (event: FormEvent) => {
+  const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!itemName.trim()) {
-      setFormError('Informe o nome do produto.');
-      return;
-    }
-    const { data, error } = await createClient()
-      .from('purchase_items')
-      .insert({ store_id: storeId, name: itemName.trim(), unit: itemUnit })
-      .select('id,name,unit')
-      .single();
-    if (error || !data) {
-      setFormError(error?.code === '23505' ? 'Esse produto já está na planilha.' : error?.message || 'Não foi possível salvar.');
-      return;
-    }
-    setItems((list) => [...list, data as Item].sort(byName));
-    setItemFormOpen(false);
-    showToast('Produto adicionado à planilha.', 'success');
-  };
-
-  const saveSupplier = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!supplierName.trim()) {
-      setFormError('Informe o nome do fornecedor.');
-      return;
-    }
-    const { data, error } = await createClient()
-      .from('purchase_suppliers')
-      .insert({ store_id: storeId, name: supplierName.trim(), phone: supplierPhone.trim() || null })
-      .select('id,name,phone')
-      .single();
-    if (error || !data) {
-      setFormError(error?.code === '23505' ? 'Esse fornecedor já está na planilha.' : error?.message || 'Não foi possível salvar.');
-      return;
-    }
-    setSuppliers((list) => [...list, data as Supplier].sort(byName));
-    setSupplierFormOpen(false);
-    showToast('Fornecedor adicionado à planilha.', 'success');
+    void save(false);
   };
 
   const remove = async () => {
@@ -206,7 +234,7 @@ export function SupplierQuoteSheet({ storeId, operatorId, suppliers: initialSupp
       setQuotes((list) => list.filter((quote) => quote.supplier_id !== id));
     }
     setPendingDelete(null);
-    showToast(pendingDelete.kind === 'item' ? 'Produto removido.' : 'Fornecedor removido.', 'success');
+    showToast(pendingDelete.kind === 'item' ? 'Produto apagado.' : 'Fornecedor apagado.', 'success');
   };
 
   const supplierLabel = (id: string) => suppliers.find((supplier) => supplier.id === id)?.name ?? 'Fornecedor';
@@ -218,224 +246,281 @@ export function SupplierQuoteSheet({ storeId, operatorId, suppliers: initialSupp
     <PageContainer>
       <PageHeader
         eyebrow="Compras"
-        title="Cotação de fornecedores"
-        description="Anote o preço de cada produto em cada fornecedor e veja na hora onde está mais barato."
+        title="Preços dos fornecedores"
+        description="Anote quanto cada fornecedor está cobrando e veja na hora onde está mais barato."
         action={
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" size="lg" onClick={openSupplierForm} className="normal-case">
-              <Store size={16} />
-              Novo fornecedor
-            </Button>
-            <Button variant="primary" size="lg" onClick={openItemForm} className="normal-case">
-              <PackagePlus size={16} />
-              Novo produto
+            {suppliers.length > 0 && (
+              <Button variant="secondary" size="lg" onClick={() => setSuppliersOpen(true)} className="normal-case">
+                <Store size={16} />
+                Fornecedores ({suppliers.length})
+              </Button>
+            )}
+            <Button variant="primary" size="lg" onClick={() => openForm()} className="normal-case">
+              <Plus size={16} />
+              Anotar preço
             </Button>
           </div>
         }
       />
 
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      {items.length > 0 && (
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar produto (ex.: tomate)"
-          className="sm:max-w-sm"
+          placeholder="O que você vai comprar? Ex.: tomate"
+          className="mt-6 sm:max-w-sm"
         />
-        <p className="text-xs text-neutral-500">
-          Toque no preço para editar · <span className="text-brand-300">verde</span> = mais barato ·{' '}
-          <span className="text-amber-400">amarelo</span> = preço com mais de {STALE_DAYS} dias
-        </p>
-      </div>
+      )}
 
-      <Panel className="mt-5" noPadding>
-        {!suppliers.length && !items.length ? (
-          <div className="p-8 text-center text-sm text-neutral-500">
-            Comece cadastrando os fornecedores e os produtos que vocês compram.
+      {!items.length ? (
+        <Panel className="mt-6">
+          <div className="mx-auto max-w-md py-6 text-center">
+            <p className="font-serif text-lg font-bold text-ink">Nenhum preço anotado ainda</p>
+            <p className="mt-2 text-sm text-neutral-400">
+              Toque em <strong className="text-ink">Anotar preço</strong> e escreva o produto, o fornecedor e quanto
+              custa. Quando tiver o preço de mais de um fornecedor, o mais barato aparece em verde.
+            </p>
+            <Button variant="primary" size="lg" onClick={() => openForm()} className="mt-5 normal-case">
+              <Plus size={16} />
+              Anotar o primeiro preço
+            </Button>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            {!suppliers.length && (
-              <p className="border-b border-border p-4 text-center text-sm text-neutral-500">
-                Cadastre pelo menos um fornecedor para começar a anotar preços.
-              </p>
-            )}
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-[10px] font-bold uppercase tracking-[0.14em] text-neutral-400">
-                  <th className="sticky left-0 z-10 min-w-[10rem] bg-surface-elevated px-4 py-3">Produto</th>
-                  {suppliers.map((supplier) => (
-                    <th key={supplier.id} className="min-w-[8.5rem] px-3 py-3">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="truncate" title={supplier.phone ?? undefined}>{supplier.name}</span>
-                        <button
-                          title={`Remover ${supplier.name}`}
-                          onClick={() => setPendingDelete({ kind: 'supplier', target: supplier })}
-                          className="rounded-md p-1 text-neutral-600 hover:bg-red-500/10 hover:text-red-400"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </th>
-                  ))}
-                  <th className="min-w-[10rem] px-3 py-3 text-brand-300">Melhor preço</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {rows.length ? (
-                  rows.map(({ item, best, worst, pricedCount }) => (
-                    <tr key={item.id} className="group">
-                      <td className="sticky left-0 z-10 bg-surface-elevated px-4 py-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="truncate font-semibold text-ink">{item.name}</p>
-                            <p className="text-xs text-neutral-500">por {item.unit}</p>
-                          </div>
-                          <div className="flex shrink-0">
-                            <button title="Histórico de preços" onClick={() => setHistoryItem(item)} className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-800">
-                              <History size={14} />
-                            </button>
-                            <button title="Remover produto" onClick={() => setPendingDelete({ kind: 'item', target: item })} className="rounded-lg p-1.5 text-red-400/70 hover:bg-red-500/10 hover:text-red-400">
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      </td>
-                      {suppliers.map((supplier) => {
-                        const key = cellKey(item.id, supplier.id);
-                        const cell = cells.get(key);
-                        const isBest = Boolean(cell && best && pricedCount > 1 && cell.price === best.cell.price);
-                        return (
-                          <td key={supplier.id} className={`px-1 py-1 ${isBest ? 'bg-brand-400/10' : ''}`}>
-                            {editingCell === key ? (
-                              <input
-                                autoFocus
-                                value={draft}
-                                onChange={(e) => setDraft(e.target.value)}
-                                onBlur={() => void saveCell(item.id, supplier.id, false)}
-                                onKeyDown={(e) => handleCellKey(e, item.id, supplier.id)}
-                                inputMode="decimal"
-                                placeholder="0,00"
-                                className="h-12 w-full rounded-lg border border-brand-400/60 bg-black px-2 text-right font-semibold text-ink outline-none"
-                              />
-                            ) : (
-                              <button
-                                onClick={() => startEdit(item.id, supplier.id)}
-                                disabled={savingCell === key}
-                                className="flex h-12 w-full flex-col items-end justify-center rounded-lg px-2 text-right hover:bg-white/5 disabled:opacity-50"
-                              >
-                                {cell ? (
-                                  <>
-                                    <span className={`font-semibold ${isBest ? 'text-brand-300' : 'text-ink'}`}>{formatCurrency(cell.price)}</span>
-                                    <span className={`flex items-center gap-0.5 text-[10px] ${isStale(cell.quotedAt) ? 'text-amber-400' : 'text-neutral-500'}`}>
-                                      {cell.previous !== null && cell.previous !== cell.price &&
-                                        (cell.price > cell.previous ? (
-                                          <ArrowUp size={10} className="text-red-400" />
-                                        ) : (
-                                          <ArrowDown size={10} className="text-brand-300" />
-                                        ))}
-                                      {formatShortDate(cell.quotedAt)}
-                                    </span>
-                                  </>
-                                ) : (
-                                  <span className="text-neutral-600">{savingCell === key ? 'Salvando…' : '—'}</span>
-                                )}
-                              </button>
-                            )}
-                          </td>
-                        );
-                      })}
-                      <td className="px-3 py-2">
-                        {best ? (
-                          <div>
-                            <p className="flex items-center gap-1 font-semibold text-brand-300">
-                              <Trophy size={12} />
-                              {formatCurrency(best.cell.price)}
-                            </p>
-                            <p className="truncate text-xs text-neutral-400">{best.supplier.name}</p>
-                            {pricedCount > 1 && worst > best.cell.price && (
-                              <p className="text-[10px] text-neutral-500">
-                                economia de {formatCurrency(worst - best.cell.price)} por {item.unit}
-                              </p>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-neutral-600">Sem preço</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+        </Panel>
+      ) : !cards.length ? (
+        <p className="mt-6 text-center text-sm text-neutral-500">Nenhum produto com esse nome.</p>
+      ) : (
+        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {cards.map(({ item, entries }) => {
+            const best = entries[0];
+            return (
+              <Panel key={item.id} noPadding bodyClassName="flex h-full flex-col">
+                <div className="flex items-start justify-between gap-3 p-4 pb-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-lg font-bold text-ink">{item.name}</p>
+                    <p className="text-xs text-neutral-500">preço por {unitShort(item.unit)}</p>
+                  </div>
+                  <div className="flex shrink-0">
+                    <button title="Histórico de preços" onClick={() => setHistoryItem(item)} className="rounded-lg p-2 text-neutral-400 hover:bg-neutral-800">
+                      <History size={16} />
+                    </button>
+                    <button title="Apagar produto" onClick={() => setPendingDelete({ kind: 'item', target: item })} className="rounded-lg p-2 text-red-400/70 hover:bg-red-500/10 hover:text-red-400">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                {best ? (
+                  <div className="mx-4 mb-3 flex items-center justify-between gap-3 rounded-xl border border-brand-400/30 bg-brand-400/10 p-3">
+                    <div className="min-w-0">
+                      <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-brand-300">
+                        <Trophy size={12} />
+                        {entries.length > 1 ? 'Mais barato' : 'Único preço anotado'}
+                      </p>
+                      <p className="truncate font-semibold text-ink">{best.supplier.name}</p>
+                    </div>
+                    <p className="shrink-0 text-2xl font-bold text-brand-300">{formatCurrency(best.price)}</p>
+                  </div>
                 ) : (
-                  <tr>
-                    <td colSpan={suppliers.length + 2} className="p-8 text-center text-sm text-neutral-500">
-                      {items.length ? 'Nenhum produto encontrado.' : 'Cadastre os produtos que vocês compram (tomate, cebola, carne...).'}
-                    </td>
-                  </tr>
+                  <p className="px-4 pb-3 text-sm text-neutral-500">Nenhum preço anotado ainda.</p>
                 )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Panel>
 
-      {itemFormOpen && (
+                {entries.length > 1 && (
+                  <ul className="divide-y divide-border border-t border-border">
+                    {entries.map((entry, index) => {
+                      const stale = daysAgo(entry.quotedAt) > STALE_DAYS;
+                      const diffToBest = entry.price - best.price;
+                      return (
+                        <li key={entry.supplier.id}>
+                          <button
+                            onClick={() => openForm({ item, supplier: entry.supplier })}
+                            title="Atualizar este preço"
+                            className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-white/5"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-ink">{entry.supplier.name}</p>
+                              <p className={cn('text-xs', stale ? 'text-amber-400' : 'text-neutral-500')}>
+                                {formatWhen(entry.quotedAt)}
+                                {stale && ' · confirmar preço'}
+                                {entry.previous !== null && entry.previous !== entry.price && (
+                                  <span className={entry.price > entry.previous ? 'text-red-400' : 'text-brand-300'}>
+                                    {' · '}
+                                    {entry.price > entry.previous ? 'subiu' : 'baixou'} {formatCurrency(Math.abs(entry.price - entry.previous))}
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <p className={cn('font-semibold', index === 0 ? 'text-brand-300' : 'text-ink')}>{formatCurrency(entry.price)}</p>
+                              {index > 0 && (
+                                <p className="text-[11px] text-neutral-500">
+                                  {diffToBest > 0 ? `+${formatCurrency(diffToBest)}` : 'mesmo preço'}
+                                </p>
+                              )}
+                            </div>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                {entries.length === 1 && (
+                  <p className={cn('px-4 pb-3 text-xs', daysAgo(best.quotedAt) > STALE_DAYS ? 'text-amber-400' : 'text-neutral-500')}>
+                    Anotado {formatWhen(best.quotedAt)}
+                    {daysAgo(best.quotedAt) > STALE_DAYS && ' · confirmar preço'}
+                  </p>
+                )}
+
+                <div className="mt-auto border-t border-border p-3">
+                  <Button variant="outline" size="md" fullWidth onClick={() => openForm({ item })} className="normal-case">
+                    <Plus size={16} />
+                    Anotar preço de {item.name}
+                  </Button>
+                </div>
+              </Panel>
+            );
+          })}
+        </div>
+      )}
+
+      {form && (
         <Modal
-          onClose={() => setItemFormOpen(false)}
-          title="Novo produto"
-          subtitle="Cotação"
+          onClose={() => setForm(null)}
+          title="Anotar preço"
+          subtitle="Compras"
+          description="Comprou vários itens no mesmo lugar? Use “Salvar e anotar outro”: o fornecedor continua escolhido."
           size="md"
           footer={
             <ModalFooter>
-              <Button variant="secondary" size="md" onClick={() => setItemFormOpen(false)} className="normal-case">
-                Cancelar
+              <Button variant="secondary" size="md" onClick={() => void save(true)} disabled={saving} className="normal-case">
+                Salvar e anotar outro
               </Button>
-              <Button type="submit" form="quote-item-form" variant="primary" size="md" className="normal-case">
-                Adicionar
+              <Button type="submit" form="price-form" variant="primary" size="md" disabled={saving} className="normal-case">
+                {saving ? 'Salvando...' : 'Salvar'}
               </Button>
             </ModalFooter>
           }
         >
-          <form id="quote-item-form" onSubmit={saveItem} className="space-y-3">
+          <form id="price-form" onSubmit={submit} className="space-y-5">
+            <FieldGroup label="1. Qual produto?">
+              <Input
+                ref={productInputRef}
+                autoFocus={!form.product}
+                value={form.product}
+                onChange={(e) => updateForm('product', e.target.value)}
+                placeholder="Ex.: Tomate"
+              />
+              {matchedItem ? (
+                <p className="mt-2 flex items-center gap-1 text-xs text-brand-300">
+                  <Check size={13} /> Produto já cadastrado · preço por {unitShort(matchedItem.unit)}
+                </p>
+              ) : (
+                <>
+                  {productSuggestions.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {productSuggestions.map((item) => (
+                        <Chip key={item.id} onClick={() => updateForm('product', item.name)}>{item.name}</Chip>
+                      ))}
+                    </div>
+                  )}
+                  {form.product.trim() && (
+                    <div className="mt-3">
+                      <p className="mb-2 text-xs text-neutral-400">Produto novo. O preço é por:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {units.map((unit) => (
+                          <Chip key={unit.value} active={form.unit === unit.value} onClick={() => updateForm('unit', unit.value)}>
+                            {unit.label}
+                          </Chip>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </FieldGroup>
+
+            <FieldGroup label="2. Em qual fornecedor?">
+              <Input
+                autoFocus={Boolean(form.product) && !form.supplier}
+                value={form.supplier}
+                onChange={(e) => updateForm('supplier', e.target.value)}
+                placeholder="Ex.: Ceasa, Atacadão, Seu Zé"
+              />
+              {matchedSupplier ? (
+                <p className="mt-2 flex items-center gap-1 text-xs text-brand-300">
+                  <Check size={13} /> Fornecedor já cadastrado
+                </p>
+              ) : (
+                <>
+                  {supplierSuggestions.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {supplierSuggestions.map((supplier) => (
+                        <Chip key={supplier.id} onClick={() => updateForm('supplier', supplier.name)}>{supplier.name}</Chip>
+                      ))}
+                    </div>
+                  )}
+                  {form.supplier.trim() && <p className="mt-2 text-xs text-neutral-400">Fornecedor novo: vai ser cadastrado ao salvar.</p>}
+                </>
+              )}
+            </FieldGroup>
+
+            <FieldGroup label={`3. Quanto custa o ${unitShort(formUnit)}?`}>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-neutral-500">R$</span>
+                <Input
+                  autoFocus={Boolean(form.product) && Boolean(form.supplier)}
+                  value={form.price}
+                  onChange={(e) => updateForm('price', e.target.value)}
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  className="h-14 pl-12 text-2xl font-bold"
+                />
+              </div>
+              {lastPriceHere && (
+                <p className="mt-2 text-xs text-neutral-400">
+                  Último preço anotado aqui: {formatCurrency(lastPriceHere.price)} ({formatWhen(lastPriceHere.quotedAt)})
+                </p>
+              )}
+            </FieldGroup>
+
             {formError && <ModalAlert variant="error">{formError}</ModalAlert>}
-            <FieldGroup label="Produto">
-              <Input autoFocus value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="Ex.: Tomate" />
-            </FieldGroup>
-            <FieldGroup label="Preço comparado por">
-              <Select value={itemUnit} onChange={(e) => setItemUnit(e.target.value)}>
-                {units.map((unit) => (
-                  <option key={unit} value={unit}>{unit}</option>
-                ))}
-              </Select>
-            </FieldGroup>
           </form>
         </Modal>
       )}
 
-      {supplierFormOpen && (
-        <Modal
-          onClose={() => setSupplierFormOpen(false)}
-          title="Novo fornecedor"
-          subtitle="Cotação"
-          size="md"
-          footer={
-            <ModalFooter>
-              <Button variant="secondary" size="md" onClick={() => setSupplierFormOpen(false)} className="normal-case">
-                Cancelar
-              </Button>
-              <Button type="submit" form="quote-supplier-form" variant="primary" size="md" className="normal-case">
-                Adicionar
-              </Button>
-            </ModalFooter>
-          }
-        >
-          <form id="quote-supplier-form" onSubmit={saveSupplier} className="space-y-3">
-            {formError && <ModalAlert variant="error">{formError}</ModalAlert>}
-            <FieldGroup label="Fornecedor">
-              <Input autoFocus value={supplierName} onChange={(e) => setSupplierName(e.target.value)} placeholder="Ex.: Ceasa, Atacadão" />
-            </FieldGroup>
-            <FieldGroup label="Telefone (opcional)">
-              <Input value={supplierPhone} onChange={(e) => setSupplierPhone(e.target.value)} inputMode="tel" />
-            </FieldGroup>
-          </form>
+      {suppliersOpen && (
+        <Modal onClose={() => setSuppliersOpen(false)} title="Fornecedores" subtitle="Compras" size="md">
+          {suppliers.length ? (
+            <ul className="divide-y divide-border">
+              {suppliers.map((supplier) => {
+                const priced = quotes.filter((quote) => quote.supplier_id === supplier.id);
+                const productCount = new Set(priced.map((quote) => quote.item_id)).size;
+                return (
+                  <li key={supplier.id} className="flex items-center justify-between gap-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-ink">{supplier.name}</p>
+                      <p className="text-xs text-neutral-500">
+                        {productCount} {productCount === 1 ? 'produto com preço' : 'produtos com preço'}
+                      </p>
+                    </div>
+                    <button
+                      title={`Apagar ${supplier.name}`}
+                      onClick={() => {
+                        setSuppliersOpen(false);
+                        setPendingDelete({ kind: 'supplier', target: supplier });
+                      }}
+                      className="rounded-lg p-2 text-red-400/70 hover:bg-red-500/10 hover:text-red-400"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="py-6 text-center text-sm text-neutral-500">Nenhum fornecedor cadastrado.</p>
+          )}
         </Modal>
       )}
 
@@ -448,11 +533,11 @@ export function SupplierQuoteSheet({ storeId, operatorId, suppliers: initialSupp
                   <div className="min-w-0">
                     <p className="truncate font-medium text-ink">{supplierLabel(quote.supplier_id)}</p>
                     <p className="text-xs text-neutral-500">
-                      {new Date(quote.quoted_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+                      {formatWhen(quote.quoted_at)} · {new Date(quote.quoted_at).toLocaleDateString('pt-BR')}
                     </p>
                   </div>
                   <span className="font-semibold text-ink">
-                    {formatCurrency(quote.price)} <span className="text-xs text-neutral-500">/{historyItem.unit}</span>
+                    {formatCurrency(quote.price)} <span className="text-xs text-neutral-500">/{unitShort(historyItem.unit)}</span>
                   </span>
                 </li>
               ))}
@@ -466,7 +551,7 @@ export function SupplierQuoteSheet({ storeId, operatorId, suppliers: initialSupp
       {pendingDelete && (
         <Modal
           onClose={() => setPendingDelete(null)}
-          title={pendingDelete.kind === 'item' ? 'Remover produto' : 'Remover fornecedor'}
+          title={pendingDelete.kind === 'item' ? 'Apagar produto' : 'Apagar fornecedor'}
           subtitle={pendingDelete.target.name}
           size="md"
           variant="center"
@@ -477,12 +562,14 @@ export function SupplierQuoteSheet({ storeId, operatorId, suppliers: initialSupp
                 Cancelar
               </Button>
               <Button variant="danger" size="md" onClick={remove} disabled={deleting} className="normal-case">
-                {deleting ? 'Removendo...' : 'Remover'}
+                {deleting ? 'Apagando...' : 'Apagar'}
               </Button>
             </ModalFooter>
           }
         >
-          <ModalAlert variant="warning">Todo o histórico de preços {pendingDelete.kind === 'item' ? 'deste produto' : 'deste fornecedor'} também será apagado.</ModalAlert>
+          <ModalAlert variant="warning">
+            Todos os preços anotados {pendingDelete.kind === 'item' ? 'deste produto' : 'deste fornecedor'} também serão apagados.
+          </ModalAlert>
         </Modal>
       )}
 
