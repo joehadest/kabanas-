@@ -2,7 +2,11 @@
 ; https://jrsoftware.org/isdl.php
 
 #define MyAppName "Kabanas Impressão"
-#define MyAppVersion "1.1.2"
+; scripts/build-inno.mjs passa a versão do package.json (/DMyAppVersion=...);
+; o valor abaixo vale só ao compilar este arquivo direto no Inno Setup.
+#ifndef MyAppVersion
+  #define MyAppVersion "1.2.0"
+#endif
 #define MyAppPublisher "Kabanas Beer"
 #define MyAppExeName "Kabanas Impressao.exe"
 
@@ -22,7 +26,10 @@ WizardStyle=modern
 SetupIconFile=icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 PrivilegesRequired=lowest
-; Fecha o agente em execução (bandeja) antes de atualizar os arquivos
+; Fecha o agente em execução (bandeja) antes de atualizar os arquivos.
+; Na atualização automática o app chama este instalador com
+; /SILENT /CLOSEAPPLICATIONS e quem reabre o programa é o [Run] abaixo
+; (o Electron não se registra no Restart Manager do Windows).
 CloseApplications=force
 RestartApplications=no
 ArchitecturesAllowed=x64compatible
@@ -42,4 +49,8 @@ Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Abrir {#MyAppName}"; Flags: nowait postinstall skipifsilent
+; Atualização silenciosa (botão "Atualizar agora"): reabre o programa sozinho.
+; A configuração fica em %APPDATA%, fora da pasta instalada, e é mantida.
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--updated"; WorkingDir: "{app}"; Flags: nowait; Check: WizardSilent
+; Instalação manual: caixa "Abrir Kabanas Impressão" na última tela.
+Filename: "{app}\{#MyAppExeName}"; Description: "Abrir {#MyAppName}"; WorkingDir: "{app}"; Flags: nowait postinstall skipifsilent

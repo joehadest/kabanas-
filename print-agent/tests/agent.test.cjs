@@ -171,3 +171,20 @@ test('the local /wake endpoint drains the queue before the initial idle timer', 
   await agent.stop();
   assert.equal(agent.pollTimer, null);
 });
+
+test('/health reports the running app version for the web panel', async (t) => {
+  const agent = new PrintAgent({ version: '9.8.7' });
+  t.after(() => agent.stop());
+  agent.api = async () => ({ jobs: [] });
+  await agent.start({ storeId: 'test-store', listenPort: 0, pollIntervalMs: 60000 });
+  const response = await fetch(`http://127.0.0.1:${agent.server.address().port}/health`);
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('access-control-allow-origin'), '*');
+  assert.equal(body.ok, true);
+  assert.equal(body.version, '9.8.7');
+});
+
+test('the agent version defaults to package.json', () => {
+  assert.equal(new PrintAgent().version, require('../package.json').version);
+});

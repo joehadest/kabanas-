@@ -362,6 +362,101 @@ select:focus {
   line-height: 1.45;
 }
 
+.update-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  background: rgba(212, 175, 55, 0.08);
+  border: 1px solid var(--gold-dark);
+}
+
+.update-card.error {
+  background: rgba(248, 113, 113, 0.08);
+  border-color: rgba(248, 113, 113, 0.5);
+}
+
+.update-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.update-title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.98rem;
+  color: var(--gold-light);
+}
+
+.update-card.error .update-title {
+  color: var(--danger);
+}
+
+.update-sub {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.update-progress {
+  height: 6px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.update-progress span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--gold-dark), var(--gold));
+  transition: width 0.2s;
+}
+
+.btn-update {
+  flex-shrink: 0;
+  padding: 10px 14px;
+  font-size: 0.88rem;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.version-line {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.link-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  color: var(--gold-light);
+}
+
+.link-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .toast {
   position: fixed;
   left: 50%;

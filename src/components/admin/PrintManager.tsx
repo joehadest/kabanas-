@@ -1,9 +1,10 @@
 'use client';
 
 import { FormEvent, memo, startTransition, useCallback, useEffect, useMemo, useState } from 'react';
-import { Copy, Eye, Printer, RefreshCw, Trash2, Wifi, WifiOff } from 'lucide-react';
+import { CircleArrowUp, CircleCheck, Copy, Download, Eye, Printer, RefreshCw, Trash2, Wifi, WifiOff } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { SAMPLE_CUSTOMER, SAMPLE_KITCHEN } from '@/lib/printing/samples';
+import { compareVersions, PRINT_AGENT_SELF_UPDATE_SINCE, type PrintAgentRelease } from '@/lib/printing/agent-release';
 import type {
   CustomerReceiptPayload,
   KitchenTicketPayload,
@@ -107,6 +108,9 @@ export function PrintManager({
   const [jobs, setJobs] = useState(initialJobs);
   const [savingSettings, setSavingSettings] = useState(false);
   const [agentOnline, setAgentOnline] = useState<boolean | null>(null);
+  // Versão informada pelo /health do agente (null = versão antiga, anterior à atualização automática).
+  const [agentVersion, setAgentVersion] = useState<string | null>(null);
+  const [latestAgent, setLatestAgent] = useState<PrintAgentRelease | null>(null);
   const [previewType, setPreviewType] = useState<'kitchen_ticket' | 'customer_receipt'>('kitchen_ticket');
   const [previewJob, setPreviewJob] = useState<PrintJobRecord | null>(null);
   const [paperWidth, setPaperWidth] = useState<58 | 80>(80);
@@ -127,8 +131,10 @@ export function PrintManager({
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 2500);
-      await fetch(`${base}/health`, { signal: controller.signal, mode: 'cors' });
+      const response = await fetch(`${base}/health`, { signal: controller.signal, mode: 'cors' });
       clearTimeout(timeout);
+      const health = (await response.json().catch(() => null)) as { version?: unknown } | null;
+      setAgentVersion(typeof health?.version === 'string' ? health.version : null);
       setAgentOnline(true);
     } catch {
       setAgentOnline(false);
@@ -140,6 +146,23 @@ export function PrintManager({
     const interval = setInterval(() => void checkAgent(), 15000);
     return () => clearInterval(interval);
   }, [checkAgent]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/print-agent/latest')
+      .then((response) => (response.ok ? (response.json() as Promise<PrintAgentRelease>) : null))
+      .then((release) => {
+        if (!cancelled && release?.version) setLatestAgent(release);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const agentUpdateAvailable = Boolean(
+    agentVersion && latestAgent && compareVersions(latestAgent.version, agentVersion) > 0
+  );
 
   const saveSettings = async (event: FormEvent) => {
     event.preventDefault();
@@ -342,6 +365,50 @@ export function PrintManager({
                   Testar conexão
                 </button>
               </div>
+
+              {agentOnline === true && agentVersion && !agentUpdateAvailable && (
+                <p className="inline-flex flex-wrap items-center gap-1.5 text-xs text-neutral-400">
+                  <CircleCheck size={14} className="text-brand-300" />
+                  Versão no caixa: <strong className="text-ink">{agentVersion}</strong>
+                  {latestAgent && <span className="text-brand-300">· atualizada</span>}
+                </p>
+              )}
+
+              {agentOnline === true && agentVersion && agentUpdateAvailable && latestAgent && (
+                <Alert variant="warning">
+                  <span className="inline-flex items-center gap-1.5 font-semibold">
+                    <CircleArrowUp size={16} /> Atualização disponível para o caixa
+                  </span>
+                  <br />
+                  O caixa está na versão <strong>{agentVersion}</strong> e a mais nova é a <strong>{latestAgent.version}</strong>.
+                  No computador do caixa, abra o Kabanas Impressão (ícone perto do relógio) e clique em{' '}
+                  <strong>Atualizar agora</strong>. O programa fecha e abre sozinho, já configurado.
+                </Alert>
+              )}
+
+              {agentOnline === true && !agentVersion && (
+                <Alert variant="warning">
+                  O caixa está com uma versão antiga do Kabanas Impressão (anterior à {PRINT_AGENT_SELF_UPDATE_SINCE}), que
+                  não se atualiza sozinha.{' '}
+                  {latestAgent ? (
+                    <>
+                      Instale a versão <strong>{latestAgent.version}</strong> uma única vez pelo botão abaixo; depois disso
+                      as próximas versões são instaladas com um clique no próprio programa.
+                    </>
+                  ) : (
+                    'Instale a versão mais recente uma única vez; depois disso as próximas versões são instaladas com um clique no próprio programa.'
+                  )}
+                </Alert>
+              )}
+
+              {latestAgent && (
+                <a
+                  href={latestAgent.url}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-300 hover:underline"
+                >
+                  <Download size={14} /> Baixar instalador do Kabanas Impressão {latestAgent.version}
+                </a>
+              )}
 
               <FieldGroup label="Token do agente (Bearer)">
                 <div className="flex gap-2">

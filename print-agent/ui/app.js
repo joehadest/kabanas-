@@ -5,13 +5,52 @@ let printers = [];
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
-function showToast(message, type = '') {
+function showToast(message, type = '', duration = 3200) {
   const el = $('#toast');
   el.textContent = message;
   el.className = `toast ${type}`.trim();
   el.classList.remove('hidden');
   clearTimeout(showToast._t);
-  showToast._t = setTimeout(() => el.classList.add('hidden'), 3200);
+  showToast._t = setTimeout(() => el.classList.add('hidden'), duration);
+}
+
+function renderUpdate(state) {
+  if (!state) return;
+  const card = $('#update-card');
+  const title = $('#update-title');
+  const sub = $('#update-sub');
+  const button = $('#update-button');
+  const progress = $('#update-progress');
+  const bar = $('#update-progress-bar');
+
+  $('#app-version').textContent = `Versão ${state.currentVersion}`;
+  $('#check-update-button').disabled = state.status === 'checking' || state.status === 'downloading' || state.status === 'installing';
+
+  const visible = ['available', 'downloading', 'installing', 'error'].includes(state.status);
+  card.classList.toggle('hidden', !visible);
+  card.classList.toggle('error', state.status === 'error');
+  if (!visible) return;
+
+  progress.classList.toggle('hidden', state.status !== 'downloading');
+  button.classList.toggle('hidden', state.status === 'downloading' || state.status === 'installing');
+  button.disabled = false;
+
+  if (state.status === 'available') {
+    title.textContent = 'Atualização disponível';
+    sub.textContent = `Versão ${state.latestVersion}. O programa fecha e abre sozinho em cerca de 1 minuto.`;
+    button.textContent = 'Atualizar agora';
+  } else if (state.status === 'downloading') {
+    title.textContent = 'Baixando atualização...';
+    sub.textContent = state.progress == null ? 'Aguarde.' : `${state.progress}% — não feche o programa.`;
+    bar.style.width = `${state.progress ?? 0}%`;
+  } else if (state.status === 'installing') {
+    title.textContent = 'Instalando atualização...';
+    sub.textContent = 'O programa vai fechar e abrir sozinho em instantes. Não desligue o computador.';
+  } else {
+    title.textContent = 'Não foi possível atualizar';
+    sub.textContent = state.error || 'Tente de novo em instantes.';
+    button.textContent = 'Tentar de novo';
+  }
 }
 
 function showView(id) {
@@ -117,6 +156,14 @@ async function init() {
   }
 
   window.kabanas.onStatus(updateStatus);
+
+  const appInfo = await window.kabanas.getAppInfo();
+  $('#app-version').textContent = `Versão ${appInfo.version}`;
+  renderUpdate(await window.kabanas.getUpdateState());
+  window.kabanas.onUpdateState(renderUpdate);
+  if (appInfo.justUpdated && config.setupComplete) {
+    showToast(`Programa atualizado para a versão ${appInfo.version}.`, 'success', 6000);
+  }
 }
 
 document.addEventListener('click', async (event) => {
@@ -222,6 +269,24 @@ document.addEventListener('click', async (event) => {
         showToast(e.message || 'Falha no teste.', 'error');
       }
       break;
+
+    case 'install-update': {
+      $('#update-button').disabled = true;
+      const result = await window.kabanas.installUpdate();
+      if (!result.ok) showToast(result.error || 'Não foi possível atualizar.', 'error', 6000);
+      break;
+    }
+
+    case 'check-update': {
+      const state = await window.kabanas.checkUpdate();
+      renderUpdate(state);
+      if (state.status === 'up-to-date') {
+        showToast('Você já está na versão mais recente.', 'success');
+      } else if (state.status === 'idle' && state.checkError) {
+        showToast(`Não foi possível verificar: ${state.checkError}`, 'error', 6000);
+      }
+      break;
+    }
 
     default:
       break;

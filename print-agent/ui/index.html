@@ -99,6 +99,19 @@
 
       <!-- Painel principal -->
       <section id="dashboard" class="panel hidden">
+        <div class="update-card hidden" id="update-card" role="status" aria-live="polite">
+          <div class="update-text">
+            <p class="update-title" id="update-title">Atualização disponível</p>
+            <p class="update-sub" id="update-sub"></p>
+            <div class="update-progress hidden" id="update-progress">
+              <span id="update-progress-bar"></span>
+            </div>
+          </div>
+          <button type="button" class="btn btn-primary btn-update" data-action="install-update" id="update-button">
+            Atualizar agora
+          </button>
+        </div>
+
         <div class="status-card" id="status-card">
           <div class="status-dot" id="status-dot"></div>
           <div>
@@ -130,6 +143,13 @@
 
         <button type="button" class="btn btn-ghost btn-block" data-action="open-settings">Configurações</button>
         <p class="hint">Ao fechar a janela, o programa continua rodando na bandeja do Windows.</p>
+        <p class="version-line">
+          <span id="app-version">Versão —</span>
+          <span aria-hidden="true">·</span>
+          <button type="button" class="link-btn" data-action="check-update" id="check-update-button">
+            Verificar atualização
+          </button>
+        </p>
       </section>
 
       <!-- Configurações -->

@@ -13,4 +13,13 @@ contextBridge.exposeInMainWorld('kabanas', {
     ipcRenderer.on('agent-status', listener);
     return () => ipcRenderer.removeListener('agent-status', listener);
   },
+  getAppInfo: () => ipcRenderer.invoke('get-app-info'),
+  getUpdateState: () => ipcRenderer.invoke('get-update-state'),
+  checkUpdate: () => ipcRenderer.invoke('check-update'),
+  installUpdate: () => ipcRenderer.invoke('install-update'),
+  onUpdateState: (callback) => {
+    const listener = (_event, state) => callback(state);
+    ipcRenderer.on('update-state', listener);
+    return () => ipcRenderer.removeListener('update-state', listener);
+  },
 });

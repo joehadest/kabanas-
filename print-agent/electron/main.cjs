@@ -1,3 +1,4 @@
+const os = require('node:os');
 const path = require('node:path');
 const {
   app,
@@ -12,13 +13,33 @@ const { PrintAgent } = require('./agent.cjs');
 const { loadConfig, saveConfig, isSetupComplete, DEFAULT_APP_URL } = require('./config-store.cjs');
 const { listWindowsPrinters, printRaw } = require('./printers.cjs');
 const { formatTestPage } = require('./format.cjs');
+const { Updater } = require('./updater.cjs');
 
-const agent = new PrintAgent();
+const UPDATE_CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
+const UPDATE_RECHECK_ON_SHOW_MS = 30 * 60 * 1000;
+// O instalador reabre o programa com --updated depois de uma atualização silenciosa.
+const justUpdated = process.argv.includes('--updated');
+
+const agent = new PrintAgent({ version: app.getVersion() });
+const updater = new Updater({
+  currentVersion: app.getVersion(),
+  getFeedUrl: () => `${(loadConfig().appUrl || DEFAULT_APP_URL).replace(/\/$/, '')}/api/print-agent/latest`,
+  downloadDir: path.join(os.tmpdir(), 'kabanas-impressao-update'),
+  logPath: path.join(os.tmpdir(), 'kabanas-impressao-update.log'),
+});
 let mainWindow = null;
 let tray = null;
 let isQuitting = false;
+let notifiedUpdateVersion = null;
 
 const ADMIN_PRINT_URL = `${DEFAULT_APP_URL}/admin/impressao`;
+
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
 
 function getUiPath(file) {
   return path.join(__dirname, '..', 'ui', file);
@@ -49,6 +70,13 @@ function createWindow() {
     mainWindow.show();
   });
 
+  mainWindow.on('show', () => {
+    const { checkedAt } = updater.getState();
+    if (!checkedAt || Date.now() - new Date(checkedAt).getTime() > UPDATE_RECHECK_ON_SHOW_MS) {
+      void updater.check();
+    }
+  });
+
   mainWindow.on('close', (event) => {
     if (!isQuitting) {
       event.preventDefault();
@@ -57,20 +85,18 @@ function createWindow() {
   });
 }
 
-function createTray() {
-  const icon = nativeImage.createFromPath(getUiPath('assets/tray.png'));
-  tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
-  tray.setToolTip('Kabanas Impressão');
+function buildTrayMenu() {
+  const update = updater.getState();
+  const updateItems =
+    update.status === 'available' || update.status === 'error'
+      ? [{ label: `Atualizar para a versão ${update.latestVersion}`, click: showMainWindow }, { type: 'separator' }]
+      : [];
 
-  const contextMenu = Menu.buildFromTemplate([
+  return Menu.buildFromTemplate([
+    ...updateItems,
     {
       label: 'Abrir Kabanas Impressão',
-      click: () => {
-        if (mainWindow) {
-          mainWindow.show();
-          mainWindow.focus();
-        }
-      },
+      click: showMainWindow,
     },
     {
       label: 'Abrir painel web',
@@ -84,15 +110,28 @@ function createTray() {
         app.quit();
       },
     },
+    { type: 'separator' },
+    { label: `Versão ${app.getVersion()}`, enabled: false },
   ]);
+}
 
-  tray.setContextMenu(contextMenu);
-  tray.on('double-click', () => {
-    if (mainWindow) {
-      mainWindow.show();
-      mainWindow.focus();
-    }
-  });
+function refreshTray() {
+  if (!tray || tray.isDestroyed()) return;
+  const update = updater.getState();
+  tray.setToolTip(
+    update.status === 'available'
+      ? `Kabanas Impressão — atualização ${update.latestVersion} disponível`
+      : 'Kabanas Impressão'
+  );
+  tray.setContextMenu(buildTrayMenu());
+}
+
+function createTray() {
+  const icon = nativeImage.createFromPath(getUiPath('assets/tray.png'));
+  tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
+  refreshTray();
+  tray.on('double-click', showMainWindow);
+  tray.on('balloon-click', showMainWindow);
 }
 
 async function applyLoginItem(config) {
@@ -116,6 +155,45 @@ function broadcastStatus() {
 }
 
 agent.on('status', broadcastStatus);
+
+updater.on('state', (state) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-state', state);
+  }
+  refreshTray();
+  if (state.status === 'available' && state.latestVersion !== notifiedUpdateVersion && tray && !tray.isDestroyed()) {
+    notifiedUpdateVersion = state.latestVersion;
+    tray.displayBalloon({
+      iconType: 'info',
+      title: 'Atualização disponível',
+      content: `Versão ${state.latestVersion} do Kabanas Impressão. Clique aqui e depois em "Atualizar agora".`,
+    });
+  }
+});
+
+async function installUpdate() {
+  if (!app.isPackaged || process.platform !== 'win32') {
+    return { ok: false, error: 'A atualização automática só funciona no programa instalado no Windows.' };
+  }
+  let agentStopped = false;
+  const result = await updater.install({
+    // Termina a impressão em andamento antes de o instalador fechar o programa.
+    beforeLaunch: async () => {
+      agentStopped = true;
+      await agent.stop();
+    },
+  });
+  if (result.ok) {
+    // O instalador também fecharia o programa; sair já libera os arquivos mais cedo.
+    setTimeout(() => {
+      isQuitting = true;
+      app.quit();
+    }, 300);
+  } else if (agentStopped) {
+    await startAgentFromConfig();
+  }
+  return result;
+}
 
 function registerIpc() {
   ipcMain.handle('get-config', () => {
@@ -168,19 +246,18 @@ function registerIpc() {
     shell.openExternal(url);
     return { ok: true };
   });
+
+  ipcMain.handle('get-app-info', () => ({ version: app.getVersion(), justUpdated }));
+  ipcMain.handle('get-update-state', () => updater.getState());
+  ipcMain.handle('check-update', () => updater.check());
+  ipcMain.handle('install-update', () => installUpdate());
 }
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.show();
-      mainWindow.focus();
-    }
-  });
+  app.on('second-instance', showMainWindow);
 
   app.whenReady().then(async () => {
     registerIpc();
@@ -190,6 +267,11 @@ if (!gotLock) {
     await applyLoginItem(config);
     await startAgentFromConfig();
     broadcastStatus();
+    // A janela já verifica ao aparecer; isto cobre o caso de ela abrir escondida.
+    setTimeout(() => {
+      if (!updater.getState().checkedAt) void updater.check();
+    }, 8000);
+    setInterval(() => void updater.check(), UPDATE_CHECK_INTERVAL_MS);
   });
 
   app.on('before-quit', async () => {
