@@ -367,7 +367,7 @@ export function PrintManager({
               </div>
 
               {agentOnline === true && agentVersion && !agentUpdateAvailable && (
-                <p className="inline-flex flex-wrap items-center gap-1.5 text-xs text-neutral-400">
+                <p className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-400">
                   <CircleCheck size={14} className="text-brand-300" />
                   Versão no caixa: <strong className="text-ink">{agentVersion}</strong>
                   {latestAgent && <span className="text-brand-300">· atualizada</span>}
