@@ -3,9 +3,12 @@ const { EventEmitter } = require('node:events');
 const { formatJob } = require('./format.cjs');
 const { printRaw } = require('./printers.cjs');
 
+const PACKAGE_VERSION = require('../package.json').version;
+
 class PrintAgent extends EventEmitter {
-  constructor() {
+  constructor({ version = PACKAGE_VERSION } = {}) {
     super();
+    this.version = version;
     this.config = null;
     this.server = null;
     this.pollTimer = null;
@@ -48,7 +51,14 @@ class PrintAgent extends EventEmitter {
 
       if (req.url === '/health' && req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: true, agent: 'kabanas-print-agent', polled_at: new Date().toISOString() }));
+        res.end(
+          JSON.stringify({
+            ok: true,
+            agent: 'kabanas-print-agent',
+            version: this.version,
+            polled_at: new Date().toISOString(),
+          })
+        );
         return;
       }
 

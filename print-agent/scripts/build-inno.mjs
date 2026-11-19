@@ -30,5 +30,6 @@ if (!iscc) {
 
 const iss = path.join(root, 'build', 'installer.iss');
 console.log('Compilando instalador com Inno Setup...');
-execFileSync(iscc, [iss], { stdio: 'inherit', cwd: path.join(root, 'build') });
+// A versão do instalador sempre acompanha o package.json (a mesma que o app mostra e compara).
+execFileSync(iscc, [`/DMyAppVersion=${version}`, iss], { stdio: 'inherit', cwd: path.join(root, 'build') });
 console.log(`Pronto: dist/KabanasImpressao-Setup-${version}.exe`);
