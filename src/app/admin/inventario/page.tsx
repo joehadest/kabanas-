@@ -15,11 +15,18 @@ export default async function InventarioPage() {
     return <p className="p-6">Empresa ou usuário não configurado.</p>;
   }
 
-  const { data: items, error } = await supabase
-    .from('inventory_items')
-    .select('id,name,sku,unit,quantity,minimum_quantity,average_cost,location,notes,is_active')
-    .eq('store_id', store.id)
-    .order('name');
+  const [{ data: items, error }, { data: products }, { data: usages, error: usageError }] = await Promise.all([
+    supabase
+      .from('inventory_items')
+      .select('id,name,sku,unit,quantity,minimum_quantity,average_cost,location,notes,is_active')
+      .eq('store_id', store.id)
+      .order('name'),
+    supabase.from('products').select('id,name').eq('store_id', store.id).order('name'),
+    supabase
+      .from('inventory_product_usage')
+      .select('inventory_item_id,product_id,base_quantity,sales_count,inventory_items!inner(store_id)')
+      .eq('inventory_items.store_id', store.id),
+  ]);
 
   if (error) {
     return (
@@ -33,5 +40,19 @@ export default async function InventarioPage() {
     );
   }
 
-  return <InventoryManager storeId={store.id} operatorId={user.id} items={items ?? []} />;
+  return (
+    <InventoryManager
+      storeId={store.id}
+      operatorId={user.id}
+      items={(items ?? []).map((item) => ({ ...item, quantity: Number(item.quantity) }))}
+      products={products ?? []}
+      usageEnabled={!usageError}
+      usages={(usages ?? []).map(({ inventory_item_id, product_id, base_quantity, sales_count }) => ({
+        inventory_item_id,
+        product_id,
+        base_quantity: Number(base_quantity),
+        sales_count: Number(sales_count),
+      }))}
+    />
+  );
 }

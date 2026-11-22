@@ -23,10 +23,26 @@ type Item = {
   is_active: boolean;
 };
 
+type Product = { id: string; name: string };
+
+/** "base_quantity da unidade do item rende sales_count vendas do produto" (ex.: 30 L rendem 90 canecas). */
+type Usage = {
+  inventory_item_id: string;
+  product_id: string;
+  base_quantity: number;
+  sales_count: number;
+};
+
+type UsageDraft = { product_id: string; base: string; count: string };
+
 interface Props {
   storeId: string;
   operatorId: string;
   items: Item[];
+  products: Product[];
+  usages: Usage[];
+  /** Falso enquanto supabase/migration_inventory_sales_usage.sql não foi executada. */
+  usageEnabled: boolean;
 }
 
 const units = ['un', 'kg', 'g', 'L', 'ml', 'cx', 'pct'];
@@ -36,9 +52,28 @@ function parseQty(value: string) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-export function InventoryManager({ storeId, operatorId, items: initialItems }: Props) {
+function formatQty(value: number) {
+  return value.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+}
+
+/** Quantas vendas o estoque atual ainda rende (arredondado para baixo). */
+function salesLeft(quantity: number, usage: Usage) {
+  return Math.max(0, Math.floor((quantity * usage.sales_count) / usage.base_quantity + 1e-9));
+}
+
+export function InventoryManager({
+  storeId,
+  operatorId,
+  items: initialItems,
+  products,
+  usages: initialUsages,
+  usageEnabled,
+}: Props) {
   const { toast, showToast, clearToast } = useFloatingToast();
   const [items, setItems] = useState(initialItems);
+  const [usages, setUsages] = useState(initialUsages);
+  const [usageDrafts, setUsageDrafts] = useState<UsageDraft[]>([]);
+  const productName = (id: string) => products.find((product) => product.id === id)?.name ?? 'Produto removido';
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<Item | null | undefined>();
   const [movementItem, setMovementItem] = useState<Item | null>(null);
@@ -73,6 +108,17 @@ export function InventoryManager({ storeId, operatorId, items: initialItems }: P
   const openEditor = (item?: Item) => {
     setEditing(item ?? null);
     setFormError(null);
+    setUsageDrafts(
+      item
+        ? usages
+            .filter((usage) => usage.inventory_item_id === item.id)
+            .map((usage) => ({
+              product_id: usage.product_id,
+              base: formatQty(usage.base_quantity),
+              count: formatQty(usage.sales_count),
+            }))
+        : []
+    );
     setForm(
       item
         ? {
@@ -93,10 +139,38 @@ export function InventoryManager({ storeId, operatorId, items: initialItems }: P
   const updateForm = (key: keyof typeof form, value: string | boolean) =>
     setForm((current) => ({ ...current, [key]: value }));
 
+  const updateUsageDraft = (index: number, patch: Partial<UsageDraft>) =>
+    setUsageDrafts((current) => current.map((draft, i) => (i === index ? { ...draft, ...patch } : draft)));
+
+  const addUsageDraft = () =>
+    setUsageDrafts((current) => [
+      ...current,
+      { product_id: '', base: parseQty(form.quantity) > 0 ? form.quantity : '1', count: '' },
+    ]);
+
+  /** Valida as ligações com o cardápio; devolve a mensagem de erro ou as linhas prontas para salvar. */
+  const parseUsageDrafts = (): string | Omit<Usage, 'inventory_item_id'>[] => {
+    const rows: Omit<Usage, 'inventory_item_id'>[] = [];
+    for (const draft of usageDrafts) {
+      if (!draft.product_id) return 'Escolha o produto em cada ligação com o cardápio.';
+      const base = parseQty(draft.base);
+      const count = parseQty(draft.count);
+      if (base <= 0 || count <= 0) return `Preencha quanto rende para ${productName(draft.product_id)}.`;
+      if (rows.some((row) => row.product_id === draft.product_id)) return `${productName(draft.product_id)} aparece duas vezes.`;
+      rows.push({ product_id: draft.product_id, base_quantity: base, sales_count: count });
+    }
+    return rows;
+  };
+
   const save = async (event: FormEvent) => {
     event.preventDefault();
     if (!form.name.trim()) {
       setFormError('Informe o nome do item.');
+      return;
+    }
+    const usageRows = parseUsageDrafts();
+    if (typeof usageRows === 'string') {
+      setFormError(usageRows);
       return;
     }
     const payload = {
@@ -119,9 +193,29 @@ export function InventoryManager({ storeId, operatorId, items: initialItems }: P
       setFormError(error?.message || 'Não foi possível salvar o item.');
       return;
     }
+    const saved = { ...(data as Item), quantity: Number(data.quantity) };
     setItems((current) =>
-      editing ? current.map((item) => (item.id === editing.id ? (data as Item) : item)) : [data as Item, ...current]
+      editing ? current.map((item) => (item.id === editing.id ? saved : item)) : [saved, ...current]
     );
+
+    if (usageEnabled) {
+      // Regrava as ligações do item: são poucas linhas e isso evita lidar com cada alteração.
+      const supabase = createClient();
+      const { error: deleteError } = await supabase.from('inventory_product_usage').delete().eq('inventory_item_id', saved.id);
+      if (!deleteError) setUsages((current) => current.filter((usage) => usage.inventory_item_id !== saved.id));
+      const nextUsages = usageRows.map((row) => ({ ...row, inventory_item_id: saved.id }));
+      const { error: insertError } =
+        deleteError || !nextUsages.length
+          ? { error: deleteError }
+          : await supabase.from('inventory_product_usage').insert(nextUsages);
+      if (insertError) {
+        setEditing(saved);
+        setFormError(`Item salvo, mas a ligação com o cardápio falhou: ${insertError.message}`);
+        return;
+      }
+      setUsages((current) => [...current, ...nextUsages]);
+    }
+
     setEditing(undefined);
     showToast(editing ? 'Item atualizado.' : 'Item adicionado ao inventário.', 'success');
   };
@@ -199,8 +293,6 @@ export function InventoryManager({ storeId, operatorId, items: initialItems }: P
         }
       />
 
-      {formError && editing !== undefined && <ModalAlert variant="error" className="mt-4">{formError}</ModalAlert>}
-
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Input
           value={search}
@@ -225,10 +317,18 @@ export function InventoryManager({ storeId, operatorId, items: initialItems }: P
                 <p className="text-xs text-neutral-500">
                   {item.location || 'Sem local'} · {item.unit} · custo {formatCurrency(item.average_cost)}
                 </p>
+                {usages
+                  .filter((usage) => usage.inventory_item_id === item.id)
+                  .map((usage) => (
+                    <p key={usage.product_id} className="mt-1 text-sm text-neutral-300">
+                      Dá para vender <strong className="text-brand-300">≈ {salesLeft(item.quantity, usage)}</strong> ×{' '}
+                      {productName(usage.product_id)}
+                    </p>
+                  ))}
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <span className={item.quantity <= item.minimum_quantity ? 'font-bold text-red-400' : 'font-bold text-brand-300'}>
-                  {item.quantity} {item.unit}
+                  {formatQty(item.quantity)} {item.unit}
                 </span>
                 <div className="flex gap-1">
                   <button title="Entrada" onClick={() => openMovement(item, 'entry')} className="rounded-lg p-2 text-brand-300 hover:bg-brand-400/10">
@@ -283,6 +383,7 @@ export function InventoryManager({ storeId, operatorId, items: initialItems }: P
           }
         >
           <form id="inventory-form" onSubmit={save} className="grid gap-3 sm:grid-cols-2">
+            {formError && <ModalAlert variant="error" className="sm:col-span-2">{formError}</ModalAlert>}
             <FieldGroup label="Nome">
               <Input value={form.name} onChange={(e) => updateForm('name', e.target.value)} />
             </FieldGroup>
@@ -315,6 +416,72 @@ export function InventoryManager({ storeId, operatorId, items: initialItems }: P
             <FieldGroup label="Observações" className="sm:col-span-2">
               <Textarea value={form.notes} onChange={(e) => updateForm('notes', e.target.value)} rows={3} />
             </FieldGroup>
+
+            <div className="rounded-2xl border border-border bg-neutral-900 p-4 sm:col-span-2">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-neutral-400">Baixa automática nas vendas</p>
+              {usageEnabled ? (
+                <>
+                  <p className="mt-1 text-xs text-neutral-500">
+                    Ligue este item aos produtos do cardápio que gastam ele. A cada venda o estoque baixa sozinho. Ex.: barril
+                    de chope: 30 L rendem 90 canecas.
+                  </p>
+                  <div className="mt-3 space-y-3">
+                    {usageDrafts.map((draft, index) => (
+                      <div key={index} className="rounded-xl border border-border p-3">
+                        <div className="flex items-center gap-2">
+                          <Select
+                            value={draft.product_id}
+                            onChange={(e) => updateUsageDraft(index, { product_id: e.target.value })}
+                            aria-label="Produto do cardápio"
+                            className="min-w-0 flex-1"
+                          >
+                            <option value="">Escolha o produto vendido</option>
+                            {products.map((product) => (
+                              <option key={product.id} value={product.id}>{product.name}</option>
+                            ))}
+                          </Select>
+                          <button
+                            type="button"
+                            title="Remover ligação"
+                            onClick={() => setUsageDrafts((current) => current.filter((_, i) => i !== index))}
+                            className="rounded-lg p-2 text-red-400 hover:bg-red-500/10"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-neutral-300">
+                          <Input
+                            value={draft.base}
+                            onChange={(e) => updateUsageDraft(index, { base: e.target.value })}
+                            inputMode="decimal"
+                            aria-label={`Quantidade em ${form.unit}`}
+                            className="w-20"
+                          />
+                          <span>{form.unit} rendem</span>
+                          <Input
+                            value={draft.count}
+                            onChange={(e) => updateUsageDraft(index, { count: e.target.value })}
+                            inputMode="decimal"
+                            placeholder="90"
+                            aria-label="Quantidade de vendas"
+                            className="w-20"
+                          />
+                          <span>vendas</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <Button type="button" variant="secondary" size="sm" onClick={addUsageDraft} className="mt-3 normal-case">
+                    <Plus size={14} />
+                    Ligar a um produto do cardápio
+                  </Button>
+                </>
+              ) : (
+                <p className="mt-1 text-xs text-neutral-500">
+                  Execute <code>supabase/migration_inventory_sales_usage.sql</code> para ativar a baixa automática.
+                </p>
+              )}
+            </div>
           </form>
         </Modal>
       )}
