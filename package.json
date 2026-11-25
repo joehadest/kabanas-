@@ -10,6 +10,7 @@
     "lint": "npm run typecheck",
     "typecheck": "tsc --noEmit",
     "test:reports": "node --test scripts/reports.test.cjs",
+    "test:inventory": "node --test scripts/inventory.test.cjs",
     "generate:logo-pngs": "node scripts/generate-logo-pngs.mjs"
   },
   "dependencies": {

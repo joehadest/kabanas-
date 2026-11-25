@@ -1,14 +1,16 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
-import { Minus, PackagePlus, Pencil, Plus, Trash2 } from 'lucide-react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { History, Minus, PackagePlus, Pencil, Plus, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { formatQty, salesLeft } from '@/lib/inventory/movements';
 import { formatCurrency, parseDecimal } from '@/lib/utils/format';
 import { Button } from '@/components/ui/button';
 import { FloatingToast, useFloatingToast } from '@/components/ui/floating-toast';
 import { FieldGroup, Input, Select, Textarea } from '@/components/ui/input';
 import { Modal, ModalAlert, ModalFooter, ModalSection } from '@/components/ui/modal';
 import { PageContainer, PageHeader, Panel } from '@/components/ui/page-layout';
+import { InventoryHistory } from './InventoryHistory';
 
 type Item = {
   id: string;
@@ -46,19 +48,12 @@ interface Props {
 }
 
 const units = ['un', 'kg', 'g', 'L', 'ml', 'cx', 'pct'];
+const ITEM_COLUMNS = 'id,name,sku,unit,quantity,minimum_quantity,average_cost,location,notes,is_active';
+const REFRESH_MS = 30_000;
 
 function parseQty(value: string) {
   const parsed = parseDecimal(value);
   return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function formatQty(value: number) {
-  return value.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
-}
-
-/** Quantas vendas o estoque atual ainda rende (arredondado para baixo). */
-function salesLeft(quantity: number, usage: Usage) {
-  return Math.max(0, Math.floor((quantity * usage.sales_count) / usage.base_quantity + 1e-9));
 }
 
 export function InventoryManager({
@@ -77,6 +72,7 @@ export function InventoryManager({
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<Item | null | undefined>();
   const [movementItem, setMovementItem] = useState<Item | null>(null);
+  const [historyId, setHistoryId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Item | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -104,6 +100,37 @@ export function InventoryManager({
     [items, search]
   );
   const lowCount = items.filter((item) => item.is_active && item.quantity <= item.minimum_quantity).length;
+
+  const historyItem = items.find((item) => item.id === historyId) ?? null;
+  const historyRules = useMemo(
+    () =>
+      usages
+        .filter((usage) => usage.inventory_item_id === historyId)
+        .map(({ product_id, base_quantity, sales_count }) => ({
+          product_name: products.find((product) => product.id === product_id)?.name ?? 'Produto removido',
+          base_quantity,
+          sales_count,
+        })),
+    [usages, products, historyId]
+  );
+
+  // As vendas baixam o estoque no banco: consulta de novo para a tela acompanhar.
+  const refreshItems = useCallback(async () => {
+    const { data } = await createClient().from('inventory_items').select(ITEM_COLUMNS).eq('store_id', storeId).order('name');
+    if (data) setItems((data as Item[]).map((item) => ({ ...item, quantity: Number(item.quantity) })));
+  }, [storeId]);
+
+  useEffect(() => {
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') void refreshItems();
+    };
+    const interval = setInterval(refreshIfVisible, REFRESH_MS);
+    window.addEventListener('focus', refreshIfVisible);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', refreshIfVisible);
+    };
+  }, [refreshItems]);
 
   const openEditor = (item?: Item) => {
     setEditing(item ?? null);
@@ -173,12 +200,16 @@ export function InventoryManager({
       setFormError(usageRows);
       return;
     }
+    const quantity = parseQty(form.quantity);
+    if (quantity < 0) {
+      setFormError('A quantidade não pode ser negativa.');
+      return;
+    }
     const payload = {
       store_id: storeId,
       name: form.name.trim(),
       sku: form.sku.trim() || null,
       unit: form.unit,
-      quantity: parseQty(form.quantity),
       minimum_quantity: parseQty(form.minimum_quantity),
       average_cost: parseQty(form.average_cost),
       location: form.location.trim() || null,
@@ -187,13 +218,31 @@ export function InventoryManager({
     };
     const query = editing
       ? createClient().from('inventory_items').update(payload).eq('id', editing.id).select('*').single()
-      : createClient().from('inventory_items').insert(payload).select('*').single();
+      : createClient().from('inventory_items').insert({ ...payload, quantity }).select('*').single();
     const { data, error } = await query;
     if (error || !data) {
       setFormError(error?.message || 'Não foi possível salvar o item.');
       return;
     }
     const saved = { ...(data as Item), quantity: Number(data.quantity) };
+
+    // Ao editar, a quantidade só muda se a pessoa corrigiu o campo, e como ajuste no histórico.
+    // Gravar o valor da tela desfaria as vendas feitas depois que o formulário abriu.
+    const correction = editing && quantity !== editing.quantity ? Math.round((quantity - saved.quantity) * 1000) / 1000 : 0;
+    if (correction) {
+      const { error: correctionError } = await createClient().from('inventory_movements').insert({
+        inventory_item_id: saved.id,
+        movement_type: 'adjustment',
+        quantity_change: correction,
+        reason: 'Quantidade corrigida na edição do item',
+        created_by: operatorId,
+      });
+      if (correctionError) {
+        setFormError(`Item salvo, mas a quantidade não foi corrigida: ${correctionError.message}`);
+        return;
+      }
+      saved.quantity = quantity;
+    }
     setItems((current) =>
       editing ? current.map((item) => (item.id === editing.id ? saved : item)) : [saved, ...current]
     );
@@ -277,6 +326,7 @@ export function InventoryManager({
     );
     setMovementItem(null);
     showToast('Movimentação registrada.', 'success');
+    void refreshItems();
   };
 
   return (
@@ -330,7 +380,15 @@ export function InventoryManager({
                 <span className={item.quantity <= item.minimum_quantity ? 'font-bold text-red-400' : 'font-bold text-brand-300'}>
                   {formatQty(item.quantity)} {item.unit}
                 </span>
-                <div className="flex gap-1">
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setHistoryId(item.id)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-neutral-300 hover:bg-neutral-800"
+                  >
+                    <History size={14} />
+                    Movimentações
+                  </button>
                   <button title="Entrada" onClick={() => openMovement(item, 'entry')} className="rounded-lg p-2 text-brand-300 hover:bg-brand-400/10">
                     <Plus size={16} />
                   </button>
@@ -400,7 +458,7 @@ export function InventoryManager({
             <FieldGroup label="Localização">
               <Input value={form.location} onChange={(e) => updateForm('location', e.target.value)} placeholder="Ex.: Depósito A" />
             </FieldGroup>
-            <FieldGroup label="Quantidade inicial">
+            <FieldGroup label={editing ? 'Quantidade atual (mude só para corrigir)' : 'Quantidade inicial'}>
               <Input value={form.quantity} onChange={(e) => updateForm('quantity', e.target.value)} inputMode="decimal" />
             </FieldGroup>
             <FieldGroup label="Estoque mínimo">
@@ -468,6 +526,15 @@ export function InventoryManager({
                           />
                           <span>vendas</span>
                         </div>
+                        {parseQty(draft.base) > 0 && parseQty(draft.count) > 0 && (
+                          <p className="mt-2 text-xs text-neutral-400">
+                            Cada venda tira{' '}
+                            <strong className="text-brand-300">
+                              {formatQty(parseQty(draft.base) / parseQty(draft.count))} {form.unit}
+                            </strong>{' '}
+                            do estoque.
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -485,6 +552,8 @@ export function InventoryManager({
           </form>
         </Modal>
       )}
+
+      {historyItem && <InventoryHistory item={historyItem} rules={historyRules} onClose={() => setHistoryId(null)} />}
 
       {movementItem && (
         <Modal
